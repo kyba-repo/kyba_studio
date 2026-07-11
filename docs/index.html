@@ -1,1 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- SEO Optimization -->
+    <title>Mi Proyecto | Plataforma de Nueva Generación</title>
+    <meta name="description" content="Descubre nuestro nuevo e increíble proyecto. Una plataforma rápida, segura y con un diseño intuitivo.">
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- CSS y JS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Navegación -->
+    <nav class="navbar" id="navbar">
+        <div class="logo">MiProyecto.</div>
+        <ul class="nav-links">
+            <li><a href="#inicio">Inicio</a></li>
+            <li><a href="#caracteristicas">Características</a></li>
+            <li><a href="#github">Código</a></li>
+        </ul>
+        <a href="#descargar" class="btn btn-outline">Descargar</a>
+    </nav>
 
+    <!-- Sección Principal (Hero) -->
+    <header class="hero" id="inicio">
+        <div class="hero-content">
+            <h1 class="fade-in">El Futuro de tu Productividad</h1>
+            <p class="fade-in delay-1">Una herramienta revolucionaria diseñada para cambiar la forma en que trabajas diariamente. Rápida, segura y con una estética inigualable.</p>
+            <div class="cta-group fade-in delay-2">
+                <a href="#empezar" class="btn btn-primary">Empezar Ahora</a>
+                <a href="https://github.com/" target="_blank" class="btn btn-secondary">Ver en GitHub</a>
+            </div>
+        </div>
+        <div class="hero-graphic fade-in delay-3">
+            <div class="glass-card main-card">
+                <div class="mockup-header">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                </div>
+                <div class="mockup-body">
+                    <h2 id="terminal-title">Inicializando sistema...</h2>
+                    <p id="terminal-text">Cargando módulos base</p>
+                    <div class="progress-bar">
+                        <div class="progress"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sección de Características -->
+    <section class="features" id="caracteristicas">
+        <div class="section-title">
+            <h2>Por qué elegirnos</h2>
+            <p>Descubre las características que nos hacen únicos.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card glass-card">
+                <div class="icon">⚡</div>
+                <h3 id="feat-1">Rendimiento Extremo</h3>
+                <p>Optimizado para funcionar a la velocidad de la luz, sin interrupciones ni tiempos de carga molestos.</p>
+            </div>
+            <div class="feature-card glass-card">
+                <div class="icon">🔒</div>
+                <h3 id="feat-2">Seguridad Avanzada</h3>
+                <p>Tus datos están protegidos con estándares de alta seguridad y arquitecturas robustas.</p>
+            </div>
+            <div class="feature-card glass-card">
+                <div class="icon">🎨</div>
+                <h3 id="feat-3">Diseño Premium</h3>
+                <p>Una interfaz de usuario hermosa y moderna, utilizando componentes glassmorphism y micro-animaciones.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pie de página -->
+    <footer>
+        <p>&copy; 2026 Mi Proyecto. Construido para impresionar.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
