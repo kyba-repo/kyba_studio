@@ -9,9 +9,9 @@ Kyba Studio es una aplicación de escritorio diseñada para cambiar la forma en 
 
 - **🔒 Privacidad Total:** La privacidad es nuestra prioridad. Todos los modelos y datos se procesan 100% localmente en tu máquina.
 - **⚡ Rendimiento Increíble:** Optimizado para funcionar en tarjetas gráficas dedicadas de Nvidia y AMD, así como en gráficos integrados que soporten la tecnología Vulkan.
-- **📦 Descarga Automática de Modelos:** Integración fluida y automática. Selecciona un modelo de la lista, hazle una consulta y comenzará a descargarse solo.
+- **📦 Descarga Automática de Modelos:** Integración fluida y automática. Selecciona un modelo de la lista, hace una consulta y comenzará a descargarse solo. Una vez descargado, podes usarlo siempre que lo necesites, sin importar si tenes conexión a internet o no.
 - **🎨 Personalización y RAG Integrado:** Crea modelos personalizados ajustando parámetros, instrucciones (prompts) y utilizando tus propias bases de conocimiento (documentos locales) gracias a la arquitectura RAG integrada.
-- **💎 Diseño Premium:** Interfaz de usuario hermosa, moderna e intuitiva, impulsada por diseño *glassmorphism*.
+- **💎 Diseño Premium:** Interfaz de usuario moderna e intuitiva.
 
 ---
 
