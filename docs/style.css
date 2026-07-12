@@ -57,13 +57,44 @@ body {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
-.logo {
-    font-size: 1.5rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -0.5px;
+.logo-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.kyba-logo {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    transition: transform 0.3s ease;
+}
+
+.kyba-logo:hover {
+    transform: scale(1.05);
+}
+
+.kyba-logo .logo-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--text-main);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-main);
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 1;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+.kyba-logo:hover .logo-box {
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
 }
 
 .nav-links {
@@ -165,9 +196,22 @@ body {
     max-width: 90%;
 }
 
+.cta-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
 .cta-group {
     display: flex;
     gap: 1rem;
+}
+
+.license-text {
+    font-size: 0.85rem !important;
+    color: var(--text-muted) !important;
+    margin: 0 !important;
+    opacity: 0.8;
 }
 
 /* ================= Tarjetas Glassmorphism ================= */
@@ -189,7 +233,7 @@ body {
 
 .main-card {
     width: 100%;
-    max-width: 450px;
+    max-width: 1020px;
     padding: 1.5rem;
     transform: rotateY(-10deg) rotateX(5deg);
     transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -238,6 +282,68 @@ body {
     height: 100%;
     background: linear-gradient(90deg, var(--primary), var(--accent));
     animation: load 2.5s ease-out forwards;
+}
+
+/* ================= Sección Cómo Funciona ================= */
+.how-it-works {
+    padding: 6rem 5% 2rem;
+}
+
+.step-container {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.step-row {
+    display: flex;
+    align-items: center;
+    gap: 4rem;
+    margin-bottom: 4rem;
+}
+
+.step-image {
+    flex: 1;
+}
+
+.step-image .glass-card:hover {
+    transform: perspective(1000px) rotateY(0deg) rotateX(0deg) scale(1.02) !important;
+}
+
+.step-text {
+    flex: 1;
+}
+
+.step-text h3 {
+    font-size: 2.2rem;
+    color: var(--primary);
+    margin-bottom: 1rem;
+    font-weight: 800;
+}
+
+.step-text p {
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    text-align: justify;
+}
+
+.fade-in-scroll {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fade-in-scroll.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@media (max-width: 900px) {
+    .step-row {
+        flex-direction: column;
+        text-align: center;
+        gap: 2.5rem;
+    }
 }
 
 /* ================= Sección Características ================= */
@@ -300,6 +406,20 @@ body {
 
 .feature-card p {
     color: var(--text-muted);
+    line-height: 1.6;
+    text-align: justify;
+}
+
+.requirements-list {
+    text-align: left;
+    color: var(--text-muted);
+    line-height: 1.6;
+    padding-left: 1.2rem;
+    margin-top: 1rem;
+}
+
+.requirements-list li {
+    margin-bottom: 0.75rem;
 }
 
 /* ================= Footer ================= */

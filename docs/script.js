@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Navbar Scroll Effect
     const navbar = document.getElementById('navbar');
-    
+
     window.addEventListener('scroll', () => {
         if (window.scrollY > 50) {
             navbar.classList.add('scrolled');
@@ -35,14 +35,28 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(card);
     });
 
-    // 3. Micro-interaction: Change text in the hero card after loading
-    setTimeout(() => {
-        const title = document.getElementById('terminal-title');
-        const text = document.getElementById('terminal-text');
-        if (title && text) {
-            title.textContent = 'Sistema Listo';
-            title.style.color = '#27c93f';
-            text.textContent = 'Todos los módulos operativos.';
-        }
-    }, 2500); // Matches the CSS animation duration
+    const fadeElements = document.querySelectorAll('.fade-in-scroll');
+    fadeElements.forEach(el => observer.observe(el));
+
+    // 3. Descargar la última versión (.exe) automáticamente desde GitHub
+    // REEMPLAZA "tu-usuario/tu-repositorio" con tus datos reales. Ej: "ger/kyba"
+    const githubRepo = "kyba-repo/kyba_studio";
+
+    fetch(`https://api.github.com/repos/${githubRepo}/releases/latest`)
+        .then(response => response.json())
+        .then(data => {
+            // Buscar dentro de los assets el archivo que termine en .exe
+            const exeAsset = data.assets && data.assets.find(asset => asset.name.endsWith('.exe'));
+
+            if (exeAsset) {
+                // Buscar los botones de descarga y actualizar hacia el link del exe
+                const downloadBtns = document.querySelectorAll('a[href="#descargar"], a[href="#empezar"]');
+                downloadBtns.forEach(btn => {
+                    btn.href = exeAsset.browser_download_url;
+                    // Opcional: Descomenta la siguiente línea si quieres que el botón diga "Descargar v1.0.0"
+                    // btn.textContent = `Descargar ${data.tag_name}`;
+                });
+            }
+        })
+        .catch(err => console.error("Error al obtener el release de GitHub:", err));
 });

@@ -1,90 +1,181 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- SEO Optimization -->
     <title>Mi Proyecto | Plataforma de Nueva Generación</title>
-    <meta name="description" content="Descubre nuestro nuevo e increíble proyecto. Una plataforma rápida, segura y con un diseño intuitivo.">
-    
+    <meta name="description"
+        content="Descubre nuestro nuevo e increíble proyecto. Una plataforma rápida, segura y con un diseño intuitivo.">
+
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
-    
+
     <!-- CSS y JS -->
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <!-- Navegación -->
     <nav class="navbar" id="navbar">
-        <div class="logo">MiProyecto.</div>
+        <a href="#inicio" class="logo-link">
+            <span class="kyba-logo">
+                <span class="logo-box">K</span>
+                <span class="logo-box">Y</span>
+                <span class="logo-box">B</span>
+                <span class="logo-box">A</span>
+            </span>
+        </a>
         <ul class="nav-links">
             <li><a href="#inicio">Inicio</a></li>
+            <li><a href="#como-funciona">Cómo funciona</a></li>
             <li><a href="#caracteristicas">Características</a></li>
-            <li><a href="#github">Código</a></li>
+            <li><a href="#requisitos">Requisitos</a></li>
         </ul>
-        <a href="#descargar" class="btn btn-outline">Descargar</a>
     </nav>
 
     <!-- Sección Principal (Hero) -->
     <header class="hero" id="inicio">
         <div class="hero-content">
-            <h1 class="fade-in">El Futuro de tu Productividad</h1>
-            <p class="fade-in delay-1">Una herramienta revolucionaria diseñada para cambiar la forma en que trabajas diariamente. Rápida, segura y con una estética inigualable.</p>
-            <div class="cta-group fade-in delay-2">
-                <a href="#empezar" class="btn btn-primary">Empezar Ahora</a>
-                <a href="https://github.com/" target="_blank" class="btn btn-secondary">Ver en GitHub</a>
+            <h1 class="fade-in">Ejecuta modelos de IA en tu PC</h1>
+            <p class="fade-in delay-1">Una herramienta diseñada para cambiar la forma en que trabajas diariamente con
+                IA.
+                Fácil, segura y privada.</p>
+            <div class="cta-container fade-in delay-2">
+                <div class="cta-group">
+                    <a href="#empezar" class="btn btn-primary">Descargar</a>
+                    <a href="https://github.com/kyba-repo/kyba_studio" target="_blank" class="btn btn-secondary">Ver en
+                        GitHub</a>
+                </div>
+                <p class="license-text">Kyba Studio es gratuito para uso personal y educativo</p>
             </div>
         </div>
         <div class="hero-graphic fade-in delay-3">
-            <div class="glass-card main-card">
-                <div class="mockup-header">
-                    <span class="dot red"></span>
-                    <span class="dot yellow"></span>
-                    <span class="dot green"></span>
-                </div>
-                <div class="mockup-body">
-                    <h2 id="terminal-title">Inicializando sistema...</h2>
-                    <p id="terminal-text">Cargando módulos base</p>
-                    <div class="progress-bar">
-                        <div class="progress"></div>
-                    </div>
-                </div>
+            <div class="glass-card main-card" style="padding: 0.5rem;">
+                <img src="main-screenshot.png" alt="Kyba App" style="width: 100%; border-radius: 12px; display: block;">
             </div>
         </div>
     </header>
 
+    <!-- Sección Cómo Funciona -->
+    <section class="how-it-works" id="como-funciona">
+        <div class="section-title">
+            <h2>Cómo funciona</h2>
+        </div>
+        <div class="step-container">
+            <div class="step-row">
+                <div class="step-image fade-in-scroll" style="flex: 0.66;">
+                    <div class="glass-card"
+                        style="padding: 0.5rem; transform: perspective(1000px) rotateY(5deg) rotateX(2deg); transition: transform 0.5s ease;">
+                        <img src="modelos.png" alt="Descarga de modelo"
+                            style="width: 100%; border-radius: 12px; display: block;">
+                    </div>
+                </div>
+                <div class="step-text fade-in-scroll delay-1">
+                    <h3>Paso 1</h3>
+                    <p>Selecciona un modelo en la barra inferior.</p>
+                </div>
+            </div>
+
+            <div class="step-row">
+                <div class="step-text fade-in-scroll">
+                    <h3>Paso 2</h3>
+                    <p>Hace una consulta y el modelo comenzará a descargarse. Listo! ya tenes tu modelo listo para
+                        trabajar</p>
+                </div>
+                <div class="step-image fade-in-scroll delay-1" style="flex: 1.2;">
+                    <div class="glass-card"
+                        style="padding: 0.5rem; transform: perspective(1000px) rotateY(-5deg) rotateX(2deg); transition: transform 0.5s ease;">
+                        <img src="descarga_completa.png" alt="Descarga completada"
+                            style="width: 100%; border-radius: 12px; display: block;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-row">
+                <div class="step-image fade-in-scroll" style="flex: 1.2;">
+                    <div class="glass-card"
+                        style="padding: 0.5rem; transform: perspective(1000px) rotateY(5deg) rotateX(2deg); transition: transform 0.5s ease;">
+                        <img src="tuning.png" alt="Personalización de modelo"
+                            style="width: 100%; border-radius: 12px; display: block;">
+                    </div>
+                </div>
+                <div class="step-text fade-in-scroll delay-1">
+                    <h3>Bonus Track</h3>
+                    <p>Podes crear tu modelo personalizado utilizando tus propios parámetros, instrucciones y bases de
+                        conocimiento.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Sección de Características -->
     <section class="features" id="caracteristicas">
         <div class="section-title">
-            <h2>Por qué elegirnos</h2>
-            <p>Descubre las características que nos hacen únicos.</p>
+            <h2>Características</h2>
         </div>
         <div class="features-grid">
             <div class="feature-card glass-card">
                 <div class="icon">⚡</div>
-                <h3 id="feat-1">Rendimiento Extremo</h3>
-                <p>Optimizado para funcionar a la velocidad de la luz, sin interrupciones ni tiempos de carga molestos.</p>
+                <h3 id="feat-1">Rendimiento increíble</h3>
+                <p>Optimizado para funcionar en tarjetas gráficas dedicadas de Nvidia y AMD, así como tambien en
+                    gráficos integrados que soporten la tecnología Vulkan.
+                </p>
             </div>
             <div class="feature-card glass-card">
                 <div class="icon">🔒</div>
-                <h3 id="feat-2">Seguridad Avanzada</h3>
-                <p>Tus datos están protegidos con estándares de alta seguridad y arquitecturas robustas.</p>
+                <h3 id="feat-2">Privacidad Total</h3>
+                <p>La privacidad es nuestra prioridad. Todos los modelos y datos se procesan localmente en tu máquina,
+                    sin enviar información sensible a internet.
+                </p>
             </div>
             <div class="feature-card glass-card">
-                <div class="icon">🎨</div>
-                <h3 id="feat-3">Diseño Premium</h3>
-                <p>Una interfaz de usuario hermosa y moderna, utilizando componentes glassmorphism y micro-animaciones.</p>
+                <div class="icon">💡</div>
+                <h3 id="feat-3">Elegí tu modelo</h3>
+                <p>Ya sea que elijas GPT-OSS, Qwen, Gemma o Llama, con Kyba Studio podes usar el modelo que más se
+                    ajuste a tus necesidades.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sección de Requisitos -->
+    <section class="features" id="requisitos">
+        <div class="section-title">
+            <h2>Requisitos</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card glass-card">
+                <div class="icon">💻</div>
+                <h3>Mínimos</h3>
+                <ul class="requirements-list">
+                    <li>CPU: Intel o AMD compatible con instrucciones AVX2 / FP16</li>
+                    <li>GPU: Nvidia, AMD o gráficos integrados Intel compatibles con Vulkan</li>
+                    <li>RAM: 8 GB </li>
+                    <li>VRAM: 3 GB </li>
+                </ul>
+            </div>
+            <div class="feature-card glass-card">
+                <div class="icon">🚀</div>
+                <h3>Recomendados</h3>
+                <ul class="requirements-list">
+                    <li>CPU: Ryzen series 2000 o superior, Intel core i5 de 11ª generación o superior</li>
+                    <li>GPU: Nvidia series RTX 2000 o superior; AMD Radeon RX series 7000 o superior</li>
+                    <li>RAM: 16 GB o superior</li>
+                    <LI>VRAM: 10 GB o superior</LI>
+                </ul>
             </div>
         </div>
     </section>
 
     <!-- Pie de página -->
     <footer>
-        <p>&copy; 2026 Mi Proyecto. Construido para impresionar.</p>
+        <p>&copy; 2026 KYBA. Todos los derechos reservados.</p>
     </footer>
 
     <script src="script.js"></script>
 </body>
+
 </html>
