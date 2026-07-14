@@ -1,64 +1,65 @@
+*Read this in other languages: [English](README.md), [Español](README.es.md)*
+
 # Kyba Studio
-> Ejecuta y personaliza modelos de IA (LLMs) localmente en tu PC. Rápido, privado y sin complicaciones.
+> Run and customize AI models (LLMs) locally on your PC. Fast, private, and hassle-free.
 
-Kyba Studio es una aplicación de escritorio diseñada para cambiar la forma en que trabajas diariamente con Inteligencia Artificial. Permite descargar, ejecutar y ajustar modelos de IA (como Llama, Gemma, Qwen, GPT-OSS, etc.) directamente en tu hardware local. Al no requerir conexión a la nube para el procesamiento, **garantizamos que tus datos e información sensible nunca salgan de tu equipo.**
-
----
-
-## ✨ Características Principales
-
-- **🔒 Privacidad Total:** La privacidad es nuestra prioridad. Todos los modelos y datos se procesan 100% localmente en tu máquina.
-- **⚡ Rendimiento Increíble:** Optimizado para funcionar en tarjetas gráficas dedicadas de Nvidia y AMD, así como en gráficos integrados que soporten la tecnología Vulkan.
-- **📦 Descarga Automática de Modelos:** Integración fluida y automática. Selecciona un modelo de la lista, hace una consulta y comenzará a descargarse solo. Una vez descargado, podes usarlo siempre que lo necesites, sin importar si tenes conexión a internet o no.
-- **🎨 Personalización y RAG Integrado:** Crea modelos personalizados ajustando parámetros, instrucciones (prompts) y utilizando tus propias bases de conocimiento (documentos locales) gracias a la arquitectura RAG integrada.
-- **💎 Diseño Premium:** Interfaz de usuario moderna e intuitiva.
+Kyba Studio is a desktop application designed to change the way you work daily with Artificial Intelligence. It allows you to download, run, and fine-tune AI models (such as Llama, Gemma, Qwen, GPT-OSS, etc.) directly on your local hardware. By not requiring a cloud connection for processing, **we guarantee that your data and sensitive information never leave your computer.**
 
 ---
 
-## 💻 Requisitos del Sistema
+## ✨ Main Features
 
-### Mínimos
-- **CPU:** Intel o AMD compatible con instrucciones AVX2 / FP16
-- **GPU:** Nvidia, AMD o gráficos integrados Intel compatibles con Vulkan
+- **🔒 Total Privacy:** Privacy is our priority. All models and data are processed 100% locally on your machine.
+- **⚡ Incredible Performance:** Optimized to run on dedicated Nvidia and AMD graphics cards, as well as integrated graphics supporting Vulkan technology.
+- **📦 Automatic Model Download:** Smooth and automatic integration. Select a model from the list, ask a question, and it will start downloading on its own. Once downloaded, you can use it whenever you need it, regardless of whether you have an internet connection or not.
+- **🎨 Customization and Integrated RAG:** Create customized models by adjusting parameters, instructions (prompts), and using your own knowledge bases (local documents) thanks to the integrated RAG architecture.
+- **💎 Premium Design:** Modern and intuitive user interface.
+
+---
+
+## 💻 System Requirements
+
+### Minimum
+- **CPU:** Intel or AMD compatible with AVX2 / FP16 instructions
+- **GPU:** Nvidia, AMD, or Intel integrated graphics supporting Vulkan
 - **RAM:** 8 GB
 - **VRAM:** 3 GB
 
-### Recomendados
-- **CPU:** Ryzen series 2000 o superior, Intel Core i5 de 11ª generación o superior
-- **GPU:** Nvidia series RTX 2000 o superior; AMD Radeon RX series 7000 o superior
-- **RAM:** 16 GB o superior
-- **VRAM:** 10 GB o superior
+### Recommended
+- **CPU:** Ryzen 2000 series or higher, Intel Core i5 11th Gen or higher
+- **GPU:** Nvidia RTX 2000 series or higher; AMD Radeon RX 7000 series or higher
+- **RAM:** 16 GB or higher
+- **VRAM:** 10 GB or higher
 
 ---
 
-## 🛠️ Instalación y Primeros Pasos
+## 🛠️ Installation and Getting Started
 
-1. Dirígete a la página de [Releases de Kyba Studio](https://github.com/kyba-repo/kyba_studio/releases).
-2. Descarga la última versión del instalador (`.exe`).
-3. Instala la aplicación en tu PC.
-4. Al abrirla, selecciona un modelo en la barra inferior (por ejemplo, `gemma2` o `qwen`).
-5. Realiza tu primera consulta. ¡El modelo se descargará automáticamente y estarás listo para trabajar!
-
----
-
-## 📸 Interfaz y Uso
-
-**Pantalla Principal**  
-![Pantalla Principal](docs/main-screenshot.png)
-
-**Descarga Automática**  
-![Modelos](docs/modelos.png)
-![Descarga Completa](docs/descarga_completa.png)
-
-**Creación de Modelo Personalizado / RAG**  
-![Personalización](docs/tuning.png)
+1. Go to the [Kyba Studio Releases](https://github.com/kyba-repo/kyba_studio/releases) page.
+2. Download the latest version of the installer (`.exe`).
+3. Install the application on your PC.
+4. When you open it, select a model from the bottom bar (for example, `gemma2` or `qwen`).
+5. Ask your first question. The model will download automatically and you will be ready to work!
 
 ---
 
-## 📄 Licencia
+## 📸 Interface and Usage
 
-**Kyba Studio es gratuito para uso personal y educativo.** 
-Para otros usos o consultas comerciales, por favor contacta con los creadores.
+**Main Screen**  
+![Main Screen](docs/main-screenshot.png)
+
+**Automatic Download**  
+![Models](docs/modelos.png)
+![Download Complete](docs/descarga_completa.png)
+
+**Custom Model Creation / RAG**  
+![Customization](docs/tuning.png)
 
 ---
-*Desarrollado por KYBA.*
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+*Developed by KYBA Devs.*
