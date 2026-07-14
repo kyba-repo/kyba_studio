@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kyba Studio v1.0</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self';
+                 script-src 'self' 'unsafe-inline';
+                 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                 font-src 'self' https://fonts.gstatic.com;
+                 img-src 'self' data:;
+                 connect-src 'self' http://127.0.0.1:*;" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #0d0f1a;
+      color: #e2e8f0;
+      overflow: hidden;
+    }
+
+    /* ── Top bar ──────────────────────────────────────────────── */
+    #topbar {
+      height: 45px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      background: linear-gradient(90deg, #1a1a2e 0%, #16213e 100%);
+      border-bottom: 1px solid rgba(150, 150, 150, .25);
+      position: relative;
+      z-index: 10;
+    }
+
+    #topbar span.logo {
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-right: 8px;
+      letter-spacing: .04em;
+      color: #e2e8f0;
+    }
+
+    /* Logo letter boxes */
+    .logo-box {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border: 1px solid #ffffff;
+      border-radius: 4px;
+      background: transparent;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 12px;
+      line-height: 1;
+      box-sizing: border-box;
+    }
+
+    #topbar button,
+    #topbar select {
+      background: rgba(255, 255, 255, .07);
+      color: #cbd5e1;
+      border: 1px solid rgba(150, 150, 150, .18);
+      padding: 5px 12px;
+      border-radius: 7px;
+      font-size: 12.5px;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+      outline: none;
+      height: 30px;
+    }
+
+    #topbar button:hover,
+    #topbar select:hover {
+      background: rgba(160, 160, 160, .12);
+      border-color: #b8b8bb;
+    }
+
+    #topbar select:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    /* Opciones de los selectores */
+    select option {
+      color: #000;
+      background: #fff;
+    }
+
+
+    /* Separator */
+    .sep {
+      width: 1px;
+      height: 22px;
+      background: rgba(150, 150, 150, .12);
+      margin: 0 4px;
+    }
+
+    /* Chat bubble styles */
+    .bubble {
+      max-width: 680px;
+      margin: 8px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .bubble.user {
+      background: linear-gradient(135deg, #cfcfcf, #a8a8a8);
+      color: #042018;
+      margin-left: auto;
+    }
+
+    .bubble.assistant {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(200, 200, 200, 0.04);
+      color: #e6eef6;
+    }
+
+    .bubble.thinking {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px dashed rgba(255, 255, 255, 0.03);
+      font-style: italic;
+      color: #9aa4b2;
+    }
+
+    .bubble pre {
+      background: #071022;
+      padding: 10px;
+      border-radius: 8px;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Courier New', monospace;
+      font-size: 13px;
+      color: #e6edf3;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      margin: 8px 0;
+    }
+
+    .bubble code {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Courier New', monospace;
+      font-size: 0.95em;
+    }
+
+    /* Enhanced code block styling */
+    .code-block {
+      margin: 8px 0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #071022;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .code-tools {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.03);
+      color: #cbd5e1;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .lang-tag {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-left: 8px;
+    }
+
+    .code-block pre {
+      margin: 0;
+      padding: 12px;
+      background: transparent;
+      border: none;
+    }
+
+    .bubble h1,
+    .bubble h2,
+    .bubble h3 {
+      margin: 8px 0;
+    }
+
+    .bubble ul {
+      margin: 6px 0 6px 18px;
+    }
+
+    .bubble p {
+      margin: 6px 0;
+    }
+
+    .caret {
+      opacity: .9;
+      display: inline-block;
+      width: .6em;
+    }
+
+    /* Light Mode */
+    body.light-mode { background: #f1f5f9; color: #0f172a; }
+    .light-mode #topbar { background: linear-gradient(90deg, #e2e8f0 0%, #f8fafc 100%); border-bottom: 1px solid rgba(0, 0, 0, .1); }
+    .light-mode #topbar span.logo { color: #0f172a; }
+    .light-mode #topbar .logo-box { border-color: #0f172a; color: #0f172a; }
+    .light-mode #topbar button, .light-mode #topbar select { background: rgba(0, 0, 0, .05); color: #334155; border: 1px solid rgba(0, 0, 0, .15); }
+    .light-mode #topbar button:hover, .light-mode #topbar select:hover { background: rgba(0, 0, 0, .1); border-color: #94a3b8; }
+    .light-mode #settingsModal > div { background: #ffffff !important; border: 1px solid rgba(0, 0, 0, 0.1) !important; }
+    .light-mode #settingsModal h3 { color: #0f172a !important; }
+    .light-mode #settingsModal label { color: #475569 !important; }
+    .light-mode #settingsModal input, .light-mode #settingsModal select, .light-mode #settingsModal textarea { background: #f8fafc !important; color: #0f172a !important; border: 1px solid rgba(0, 0, 0, 0.2) !important; }
+    .light-mode #settingsModal button#cancelSettings { color: #334155 !important; border-color: rgba(0, 0, 0, 0.2) !important; }
+    .light-mode #settingsModal #tempVal, .light-mode #settingsModal #topPVal { color: #000000 !important; }
+    .light-mode #settingsModal #newProfileBtn { color: #000000 !important; border-color: rgba(0, 0, 0, 0.2) !important; background: rgba(0, 0, 0, 0.05) !important; }
+    .light-mode #loadedDocsContainer { background: #f8fafc !important; border: 1px solid rgba(0, 0, 0, 0.15) !important; }
+    .light-mode #loadedDocsContainer div { color: #334155 !important; }
+
+    /* Loading Overlay */
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      background: #0d0f1a;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #e2e8f0;
+      transition: opacity 0.4s ease;
+    }
+    #loadingOverlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loading-logo {
+      font-size: 32px;
+      margin-bottom: 24px;
+      display: flex;
+      gap: 12px;
+    }
+    .loading-logo .logo-box {
+      width: 48px;
+      height: 48px;
+      font-size: 26px;
+      border-width: 2px;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      border-top-color: #818cf8;
+      animation: spin 1s ease-in-out infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-text {
+      font-size: 14px;
+      color: #94a3b8;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="loading-logo">
+      <span class="logo-box">K</span>
+      <span class="logo-box">Y</span>
+      <span class="logo-box">B</span>
+      <span class="logo-box">A</span>
+    </div>
+    <div class="spinner"></div>
+    <div class="loading-text">Loading...</div>
+  </div>
+
+  <!-- ── Top bar ── -->
+  <div id="topbar">
+    <span class="logo"><span class="logo-box">K</span><span class="logo-box">Y</span><span
+        class="logo-box">B</span><span class="logo-box">A</span></span>
+
+
+    <div style="flex:1;"></div>
+    <button id="themeToggleBtn" title="Change theme" style="margin-right: 4px;">☀️</button>
+    <button id="settingsBtn" title="Settings">⚙️</button>
+  </div>
+
+  <!-- Settings modal -->
+  <div id="settingsModal"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:200;">
+    <div
+      style="width:800px; max-width:95%; background:#0f1724; border-radius:10px; padding:16px; border:1px solid rgba(255,255,255,0.04); display:flex; flex-direction:column;">
+      <h3 style="margin-bottom:12px; color:#e6eef6;">Model Settings</h3>
+
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <select id="profileSelect"
+          style="flex:1; background:#071022; color:#cbd5e1; border:1px solid rgba(255,255,255,0.04); padding:6px; border-radius:6px; outline:none;">
+          <!-- Populated dynamically -->
+        </select>
+        <button id="newProfileBtn"
+          style="background:rgba(255,255,255,0.05); color:#cbd5e1; border:1px solid rgba(255,255,255,0.06); padding:6px 10px; border-radius:6px; cursor:pointer;">New</button>
+      </div>
+
+      <div id="profileEditor">
+        <div style="display:flex; gap:12px; margin-bottom:10px;">
+          <div style="flex:1;">
+            <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:4px;">Profile Name</label>
+            <input type="text" id="profileName"
+              style="width:100%; background:#071022; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); padding:6px; border-radius:6px; font-size:13px; outline:none;" />
+          </div>
+          <div style="flex:1;">
+            <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:4px;">Base Model</label>
+            <select id="profileBaseModel" style="width:100%; background:#071022; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); padding:6px; border-radius:6px; font-size:13px; outline:none;">
+              <option value="gemma4:e2b">gemma4:e2b</option>
+              <option value="gpt-oss:20b">gpt-oss:20b</option>
+              <option value="qwen:0.5b">qwen:0.5b</option>
+              <option value="llama3.2:1b">llama3.2:1b</option>
+              <option value="qwen2.5:1.5b">qwen2.5:1.5b</option>
+              <option value="gemma2:2b">gemma2:2b</option>
+            </select>
+          </div>
+        </div>
+
+
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px;">
+          <label style="flex:1; color:#94a3b8; font-size:13px;">Creativity</label>
+          <input id="tempSlider" type="range" min="0" max="1" step="0.01" value="0.2" style="flex:2;" />
+          <span id="tempVal" style="color:#e6eef6; font-size:13px; width:30px; text-align:right;">0.2</span>
+        </div>
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px;">
+          <label style="flex:1; color:#94a3b8; font-size:13px;">Response Length</label>
+          <input id="topPSlider" type="range" min="0" max="1" step="0.01" value="0.9" style="flex:2;" />
+          <span id="topPVal" style="color:#e6eef6; font-size:13px; font-weight:600; width:30px; text-align:right;">0.9</span>
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; margin-top:8px;">
+          <label style="color:#94a3b8; font-size:12px;">Instructions</label>
+          <button id="ingestBtn" style="background:rgba(99,102,241,0.15); color:#818cf8; border:1px solid rgba(99,102,241,0.3); padding:4px 10px; border-radius:5px; font-size:11px; cursor:pointer;">Load Context Documents</button>
+        </div>
+        <textarea id="modelPrompt" rows="8"
+            style="width:100%; height:200px; background:#071022; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); padding:8px; border-radius:8px; font-family:Inter, sans-serif; font-size:13px; resize:none;"
+            placeholder="Base instructions for this model..."></textarea>
+        
+        <div style="margin-top: 12px; margin-bottom: 8px;">
+          <label style="color:#94a3b8; font-size:12px; display:block; margin-bottom:6px;">Indexed Documents in Knowledge Base</label>
+          <div id="loadedDocsContainer" style="background:#071022; border:1px solid rgba(255,255,255,0.04); border-radius:6px; padding:8px; max-height:100px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;">
+            <span style="color:#64748b; font-size:12px;">Loading...</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; gap:8px; margin-top:16px;">
+        <button id="deleteProfileBtn"
+          style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.2); color:#ef4444; padding:8px 12px; border-radius:8px; display:none; cursor:pointer;">Delete
+          Profile</button>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <button id="cancelSettings"
+            style="background:transparent;border:1px solid rgba(255,255,255,0.06);color:#cbd5e1;padding:8px 12px;border-radius:8px;cursor:pointer;">Cancel</button>
+          <button id="saveSettings"
+            style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;">Save
+            and Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
