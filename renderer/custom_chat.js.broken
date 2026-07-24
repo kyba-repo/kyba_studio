@@ -1,0 +1,632 @@
+// custom_chat.js – renderer logic for the local GPT-OSS chat panel
+
+const form     = document.getElementById('inputArea');
+const promptEl = document.getElementById('prompt');
+const sendBtn  = document.getElementById('sendBtn');
+const messages = document.getElementById('messages');
+const statusBar= document.getElementById('statusBar');
+const gpuToggle= document.getElementById('gpuToggle');
+const modeLabel= document.getElementById('modeLabel');
+
+// Utility: sanitize text from model (ANSI/control chars) — used by streams and final bubble
+function sanitizeText(s) {
+  if (!s && s !== 0) return '';
+  let t = s.toString();
+  // Remove ANSI escape sequences but keep CR/LF/tab for processing
+  t = t.replace(/\x1B\[[0-?]*[ -\/]*[@-~]/g, '');
+  // Remove other non-printable control chars except newline (\n), carriage return (\r) and tab
+  t = t.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]+/g, '');
+  return t;
+}
+
+// ── Execution mode toggle (CPU/GPU) ──────────────────────────────────────────
+gpuToggle.addEventListener('change', () => {
+  const mode = gpuToggle.checked ? 'gpu' : 'cpu';
+  modeLabel.textContent = gpuToggle.checked ? 'GPU ⚡' : 'CPU';
+  if (window.chatAPI && typeof window.chatAPI.setMode === 'function') {
+    window.chatAPI.setMode(mode);
+  }
+});
+
+// Restore last saved mode from localStorage
+const savedMode = localStorage.getItem('kyba_exec_mode') || 'cpu';
+if (savedMode === 'gpu') {
+  gpuToggle.checked = true;
+  modeLabel.textContent = 'GPU ⚡';
+  if (window.chatAPI) window.chatAPI.setMode('gpu');
+}
+
+// ── Auto-resize textarea ──────────────────────────────────────────────────────
+promptEl.addEventListener('input', () => {
+  promptEl.style.height = 'auto';
+  promptEl.style.height = Math.min(promptEl.scrollHeight, 100) + 'px';
+});
+
+// Submit on Enter (Shift+Enter = newline)
+promptEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    form.dispatchEvent(new Event('submit'));
+  }
+});
+
+// ── Send message ──────────────────────────────────────────────────────────────
+// Global streaming state (single shared handlers)
+let accumulated = '';
+let currentThinking = null;
+let currentAssistant = null; // element that will be updated during streaming
+let streamListening = false;
+// Only render model output that appears after this marker (accept variants)
+const DONE_MARKER = '...done thinking.';
+const DONE_MARKER_RE = /\.{0,3}\s*done thinking\s*[.!?]?/i;
+let seenDoneThinking = false;
+let pendingEmptyFallback = null;
+let receivedAnyChunk = false;
+let renderTimer = null;
+let lastRendered = '';
+let progressiveTimer = null;
+let revealIndex = 0; // index of revealed word-token
+const REVEAL_DELAY_MS = 80; // ms per token (word + trailing spaces)
+let finalizing = false;
+
+function tokenizeForReveal(s) {
+  // split into tokens of non-space characters plus following spaces, preserving punctuation
+  if (!s) return [];
+  return String(s).match(/(\S+\s*)/g) || [];
+}
+
+// Determine whether a text chunk contains significant (letter/number) content
+function isSignificantText(s) {
+  if (!s) return false;
+  try { return /[\p{L}\p{N}]/u.test(s); } catch (e) { return /[A-Za-z0-9]/.test(s); }
+}
+
+const streamHandler = (_, chunk) => {
+  try {
+    const raw = (chunk||'').toString();
+    const cleaned = sanitizeText(raw);
+    // ignore pure whitespace-only chunks
+    if (/^[\s\r\n\t]+$/.test(cleaned)) return;
+    // If we didn't create a thinking bubble (panel opened late or UI race), create it now
+    if (!currentThinking) {
+      currentThinking = addBubble('thinking', '● pensando…');
+      console.log('[chat] thinking bubble created (on stream)');
+      sendBtn.disabled = true;
+      statusBar.textContent = 'Generando respuesta…';
+      statusBar.className = 'loading';
+    }
+
+    // Always append incoming cleaned chunk to accumulated. We'll detect the DONE_MARKER
+    // after concatenation so markers split across chunk boundaries are found.
+    accumulated += cleaned;
+    // Only start rendering once we detect the DONE_MARKER in the accumulated stream
+    if (!seenDoneThinking) {
+      const m = accumulated.match(DONE_MARKER_RE);
+      if (!m) {
+        // not yet reached the marker; keep waiting
+        messages.scrollTop = messages.scrollHeight;
+        return;
+      }
+      // Marker found: start rendering only the content after the marker
+      seenDoneThinking = true;
+      // keep only the part after the marker as the initial displayed content
+      const idx = m.index + (m[0] ? m[0].length : DONE_MARKER.length);
+      accumulated = accumulated.slice(idx);
+      // reset progressive reveal index so we reveal from start
+      revealIndex = 0;
+      if (currentAssistant) { try { currentAssistant.textContent = ''; } catch (e) {} }
+    }
+
+    // cancel pending empty fallback (we have activity)
+    try {
+      if (pendingEmptyFallback) { clearTimeout(pendingEmptyFallback); pendingEmptyFallback = null; }
+      receivedAnyChunk = true;
+    } catch (e) {}
+    // Strip common "thinking" artifacts that sometimes get mixed into the stream
+    try {
+      const thinkingPatterns = [ /(^|\n)[\s\-\*•●\.]{0,6}\s*(pensando|thinking)[^\n]*/ig, /(^|\n)\.{2,}\s*pensando[^\n]*/ig ];
+      for (const p of thinkingPatterns) {
+        if (finalText) finalText = finalText.replace(p, '\n');
+        if (accumulated) accumulated = accumulated.replace(p, '\n');
+      }
+      // remove lines that are just ellipses or bullets
+      if (finalText) finalText = finalText.replace(/^\s*[\.\-•●]{2,}\s*$/gm, '');
+      if (accumulated) accumulated = accumulated.replace(/^\s*[\.\-•●]{2,}\s*$/gm, '');
+      // If the word "pensando" appears and there's useful content after it, prefer the content after the last occurrence
+      try {
+        const low = (finalText || '').toLowerCase();
+        const last = low.lastIndexOf('pensando');
+        if (last > -1 && (finalText || '').length > last + 8) {
+          finalText = finalText.slice(last + 8).replace(/^[\s\:\-\.\,]+/, '').trim();
+        }
+      } catch (e) {}
+      // collapse multiple blank lines
+      if (finalText) finalText = finalText.replace(/\n{2,}/g, '\n').trim();
+      if (accumulated) accumulated = accumulated.replace(/\n{2,}/g, '\n').trim();
+    } catch (e) { /* ignore cleaning errors */ }
+
+    // Further strip status-like prefixes (lines like '● pensando…', '...thinking', '▌')
+    try {
+      function isStatusLine(line) {
+        if (!line) return true;
+        const t = line.trim();
+        // lines that are mostly punctuation or very short are considered status/noise
+        if (/^[\s\-\*\u2022\u25CF\.▌>]+$/.test(t)) return true;
+        if (t.length < 4 && !/[\p{L}\p{N}]/u.test(t)) return true;
+        if (/\b(pensando|thinking|generando|loading|esperando|wait|espera|done thinking|done)\b/i.test(t)) return true;
+        return false;
+      }
+
+      const lines = (finalText || '').split(/\r?\n/);
+      let startIdx = 0;
+      while (startIdx < lines.length && isStatusLine(lines[startIdx])) startIdx++;
+      if (startIdx > 0 && startIdx < lines.length) {
+        finalText = lines.slice(startIdx).join('\n').trim();
+      }
+      // Also apply to accumulated fallback
+      const alines = (accumulated || '').split(/\r?\n/);
+      let astart = 0;
+      while (astart < alines.length && isStatusLine(alines[astart])) astart++;
+      if (astart > 0 && astart < alines.length) accumulated = alines.slice(astart).join('\n').trim();
+      // Remove leading carets and stray bullets from finalText
+      finalText = String(finalText || '').replace(/^[\s>\-\*\u2022\u25CF▌\.]{0,10}/, '').trim();
+    } catch (e) {}
+    messages.scrollTop = messages.scrollHeight;
+    console.log('[chat] RCV CHUNK len=', cleaned.length, 'preview=', cleaned.replace(/\n/g,' ').slice(0,80));
+
+    // If we've found the done marker, start/continue progressive reveal (character-by-character)
+        if (seenDoneThinking) {
+      // ensure assistant bubble exists (empty text for progressive reveal)
+      if (currentAssistant && currentAssistant.dataset && currentAssistant.dataset.finalized === 'true') {
+        // previous bubble was finalized; don't reuse it
+        currentAssistant = null;
+      }
+      if (!currentAssistant) {
+        currentAssistant = addBubble('assistant', '');
+      }
+      // start reveal loop if not running
+      if (!progressiveTimer) {
+        progressiveTimer = setInterval(() => {
+          try {
+              const src = String(accumulated || '');
+              const tokens = tokenizeForReveal(src);
+              // increase reveal index but not beyond token count
+              if (revealIndex < tokens.length) revealIndex = Math.min(tokens.length, revealIndex + 1);
+              const toShow = tokens.slice(0, revealIndex).join('');
+              // show a caret while streaming — render inline markdown progressively
+              const caret = (revealIndex < tokens.length || !finalizing) ? '<span class="caret">▌</span>' : '';
+              try {
+                currentAssistant.innerHTML = renderProgressiveMarkdownToHTML(toShow) + caret;
+              } catch (e) {
+                currentAssistant.textContent = toShow + (caret ? '▌' : '');
+              }
+            messages.scrollTop = messages.scrollHeight;
+              // If we've been asked to finalize and we've revealed all tokens, stop interval
+              if (finalizing && revealIndex >= tokens.length) {
+                // remove caret and stop
+                try { currentAssistant.innerHTML = renderProgressiveMarkdownToHTML(src); } catch (e) { currentAssistant.textContent = src; }
+                // mark bubble as finalized so future streams won't overwrite it
+                try { if (currentAssistant) currentAssistant.dataset.finalized = 'true'; } catch (e) {}
+                clearInterval(progressiveTimer);
+                progressiveTimer = null;
+                finalizing = false;
+              }
+          } catch (e) { console.error('[chat] progressiveTimer error', e && e.message); }
+        }, REVEAL_DELAY_MS);
+      }
+    }
+  } catch (e) {
+    console.error('[chat] streamHandler error', e && e.message);
+  }
+};
+
+const doneHandler = (_, payload) => {
+  try {
+    let finalText = '';
+    // Normalize payload.answer: accept string, JSON string, or object {answer:...}
+    let payloadAnswer = payload && payload.answer;
+    if (payloadAnswer && typeof payloadAnswer === 'object') {
+      if (typeof payloadAnswer.answer !== 'undefined') payloadAnswer = payloadAnswer.answer;
+      else payloadAnswer = String(payloadAnswer);
+    }
+    if (typeof payloadAnswer === 'string') {
+      // If the model returned a JSON blob as string, try to parse
+      try {
+        const maybe = payloadAnswer.trim();
+        if (maybe.startsWith('{') && maybe.indexOf('"answer"') !== -1) {
+          const obj = JSON.parse(maybe);
+          if (obj && obj.answer) payloadAnswer = obj.answer;
+        }
+      } catch (e) {}
+      // Remove any injected markers if accidentally echoed
+      try {
+        const m = payloadAnswer.match(/<<<RESPUESTA_INICIO>>>([\s\S]*?)<<<RESPUESTA_FIN>>>/m);
+        if (m && m[1]) payloadAnswer = m[1];
+      } catch (e) {}
+      if (payload && payload.ok && payloadAnswer && payloadAnswer.toString().trim().length > 0) {
+        finalText = sanitizeText(payloadAnswer);
+      }
+    }
+    // === CRITICAL: Extract ONLY content between markers from accumulated ===
+    try {
+      let acc = String(accumulated || '').trim();
+      // Search for markers with any suffix: <<<RESPUESTA_START_...>>> to <<<RESPUESTA_END_...>>>
+      const markerRe = /<<<RESPUESTA_START_[\w]+>>>([\s\S]*?)<<<RESPUESTA_END_[\w]+>>>/;
+      const mm = acc.match(markerRe);
+      if (mm && mm[1]) {
+        // Found markers! Use only the content between them
+        acc = mm[1].trim();
+        console.log('[chat] Extracted content between markers, length=', acc.length);
+      } else {
+        // No markers found — apply aggressive cleanup
+        // Remove footer
+        acc = acc.replace(/>{2,}\s*Send a message[\s\S]*$/i, '');
+        acc = acc.split(/\n/).filter(l => !/send a message/i.test(l) && !/for help/i.test(l)).join('\n');
+        // Collapse multiple spaces
+        acc = acc.replace(/\s+/g, ' ').trim();
+      }
+      acc = acc.replace(/^[\s\n]+|[\s\n]+$/g, '').trim();
+      if (acc && acc.length > 0) {
+        finalText = acc;
+      } else if (!finalText || finalText.trim().length === 0) {
+        if (accumulated && accumulated.toString().trim().length > 0) {
+          finalText = accumulated;
+        }
+      }
+    } catch (e) { console.error('[chat] marker extraction error:', e && e.message); }
+    // If we have the marker instruction anywhere, prefer only the content between markers
+    try {
+      // Extract content between RESPUESTA_START and RESPUESTA_END (with any random suffix)
+      const markerRe = /<<<RESPUESTA_START_[\w]+>>>([\s\S]*?)<<<RESPUESTA_END_[\w]+>>>/;
+      const mm = (finalText || '').match(markerRe);
+      if (mm && mm[1]) {
+        const extracted = mm[1].trim();
+        if (extracted && extracted.length > 0) {
+          finalText = extracted;
+          console.log('[chat] Extracted via marker-end match, length=', extracted.length);
+        }
+      }
+    } catch (e) { console.error('[chat] marker-end extraction error:', e && e.message); }
+
+    // Remove known interactive prompt/footer injected by the model runtime
+    try {
+      if (finalText && typeof finalText === 'string') {
+        // Remove common 'Send a message' footers, with or without leading '>' arrows
+        // Remove entire lines that contain the phrase (case-insensitive)
+        finalText = finalText.replace(/(^|\n).*send a message.*(\n|$)/ig, '\n');
+        // Also remove standalone help hints like '(?/', '/? for help', etc.
+        finalText = finalText.replace(/(^|\n).*for help.*(\n|$)/ig, '\n');
+        // Fallback: remove trailing arrow-footers like '>>> Send a message (/? for help)'
+        finalText = finalText.replace(/\s*>+\s*Send a message\s*(\([^)]*\))?\s*$/i, '');
+        // Trim leftover whitespace/newlines
+        finalText = finalText.replace(/^[\s\n]+|[\s\n]+$/g, '');
+      }
+      // Also strip the same patterns from accumulated fallback
+      try {
+        if (accumulated && typeof accumulated === 'string') {
+          accumulated = accumulated.replace(/(^|\n).*send a message.*(\n|$)/ig, '\n');
+          accumulated = accumulated.replace(/(^|\n).*for help.*(\n|$)/ig, '\n');
+          accumulated = accumulated.replace(/\s*>+\s*Send a message\s*(\([^)]*\))?\s*$/i, '');
+          accumulated = accumulated.replace(/^[\s\n]+|[\s\n]+$/g, '');
+        }
+      } catch (e) {}
+    } catch (e) {}
+
+
+    // === FINAL CLEANUP: Remove any remaining thinking blocks and instruction prose ===
+    try {
+      finalText = (finalText || '').replace(/<thinking[\s\S]*?<\/thinking>/gi, '').trim();
+      finalText = (finalText || '').replace(/<reasoning[\s\S]*?<\/reasoning>/gi, '').trim();
+      
+      // Remove remaining markers if somehow they weren't caught earlier
+      finalText = (finalText || '').replace(/<<<[\w_]+>>>/g, '').trim();
+      
+      // Remove lines that start with thinking/instruction keywords
+      finalText = (finalText || '').split('\n').filter(line => {
+        const t = line.trim().toLowerCase();
+        // Skip instruction prose patterns
+        if (/^(user\s+wants|they\s+want|we\s+|thus\s+|so\s+|so we|to provide|to answer)/.test(t)) return false;
+        // Skip thinking/status lines
+        if (/\b(pensando|thinking|razonando|reasoning|meditando|generando|elaborando|escribiendo|done\s+thinking|done thinking)\b/.test(t)) return false;
+        // Skip pure noise/bullets
+        if (/^[\s\-\*\u2022\u25CF\.▌>]+$/.test(t)) return false;
+        return true;
+      }).join('\n').trim();
+      
+      // Remove leading bullets/symbols
+      finalText = (finalText || '').replace(/^[\s\-\*\u2022\u25CF\.▌>]{0,10}/, '').trim();
+      
+      // Collapse excessive newlines
+      finalText = (finalText || '').replace(/\n{3,}/g, '\n\n').trim();
+      
+      // SAFETY: If response is still long (> 400 chars), take first paragraph
+      if ((finalText || '').length > 400) {
+        const firstPara = (finalText || '').split(/\n\n/)[0];
+        if (firstPara && firstPara.length > 20) {
+          finalText = firstPara.trim();
+        }
+      }
+    } catch (e) { console.error('[chat] final cleanup error:', e && e.message); }
+
+    // Detect placeholder-like responses (e.g. "<texto>", "<TU_RESPUESTA_AQUÍ>") and treat as invalid
+    try {
+      if (finalText && /^\s*<[^>]{1,80}>\s*$/.test(finalText)) {
+        console.log('[chat] detected placeholder-only answer, falling back to accumulated');
+        if (accumulated && accumulated.toString().trim().length > 0) {
+          finalText = accumulated;
+        } else {
+          finalText = '[sin contenido: modelo devolvió un marcador]';
+        }
+      }
+    } catch (e) {}
+    if (!finalText || finalText.trim().length === 0) {
+      if (payload && payload.error) {
+        finalText = '⚠️ ' + payload.error;
+        // If the main process attached raw terminal output, append a trimmed preview
+        try {
+          if (payload.raw) {
+            const rawText = sanitizeText(String(payload.raw || '')).trim();
+            const preview = rawText.length > 1500 ? rawText.slice(-1500) : rawText;
+            finalText += '\n\n--- salida del proceso (reciente) ---\n' + preview;
+          }
+        } catch (e) {}
+      } else {
+        // If we received stream chunks, prefer accumulated; otherwise delay the
+        // empty fallback so the UI keeps showing the 'pensando' bubble briefly.
+        if (receivedAnyChunk) {
+          finalText = accumulated || '[sin contenido]';
+        } else if (currentThinking && !currentAssistant) {
+          // schedule fallback after short delay; it will be cancelled if chunks arrive
+          pendingEmptyFallback = setTimeout(() => {
+            try { if (currentThinking) currentThinking.remove(); } catch (e) {}
+            addBubble('assistant', '[sin contenido]');
+            pendingEmptyFallback = null;
+            sendBtn.disabled = false;
+          }, 250);
+          // keep thinking bubble for now and exit
+          return;
+        } else {
+          finalText = '[sin contenido]';
+        }
+      }
+    }
+
+    // Insert final assistant bubble (remove thinking bubble first so it's a direct swap)
+    try { if (currentThinking) { try { currentThinking.remove(); } catch (e) {} currentThinking = null; } } catch (e) {}
+    console.log('[chat] finalText preview:', (finalText||'').slice(0,200).replace(/\n/g,' '));
+    // Instead of replacing with rendered Markdown immediately, set accumulated to the final text
+    // and let the progressive reveal finish naturally; mark finalizing so the reveal stops when complete.
+    try {
+      // ensure progressive reveal will show the remainder
+      accumulated = String(finalText || '');
+      finalizing = true;
+      // if reveal loop is not running, start it to finish revealing
+      if (!progressiveTimer) {
+        // start a small interval to drive reveal until completion
+        progressiveTimer = setInterval(() => {
+          try {
+              const src = String(accumulated || '');
+              const tokens = tokenizeForReveal(src);
+              if (revealIndex < tokens.length) revealIndex = Math.min(tokens.length, revealIndex + 1);
+              const toShow = tokens.slice(0, revealIndex).join('');
+              if (!currentAssistant) { currentAssistant = addBubble('assistant', ''); }
+              const caret2 = (revealIndex < tokens.length || !finalizing) ? '<span class="caret">▌</span>' : '';
+              try {
+                currentAssistant.innerHTML = renderProgressiveMarkdownToHTML(toShow) + caret2;
+              } catch (e) {
+                currentAssistant.textContent = toShow + (caret2 ? '▌' : '');
+              }
+            messages.scrollTop = messages.scrollHeight;
+              if (finalizing && revealIndex >= tokens.length) {
+                try { currentAssistant.innerHTML = renderProgressiveMarkdownToHTML(src); } catch (e) { currentAssistant.textContent = src; }
+                clearInterval(progressiveTimer);
+                progressiveTimer = null;
+                finalizing = false;
+              }
+          } catch (e) { console.error('[chat] finalize reveal error', e && e.message); }
+        }, REVEAL_DELAY_MS);
+      }
+    } catch (e) {
+      addBubble('assistant', finalText);
+    }
+    if (payload && payload.ok) {
+      statusBar.textContent = 'Modelo: gpt-oss:20b · listo';
+      statusBar.className = 'ok';
+    } else {
+      statusBar.textContent = 'Error al generar respuesta';
+      statusBar.className = 'error';
+    }
+  } catch (e) {
+    console.error('[chat] doneHandler error', e && e.message);
+  } finally {
+    try { if (currentThinking) currentThinking.remove(); } catch (e) {}
+    currentThinking = null;
+    // reset assistant streaming state
+    // keep currentAssistant so final bubble stays; timers will stop when reveal completes
+    receivedAnyChunk = false;
+    if (pendingEmptyFallback) { clearTimeout(pendingEmptyFallback); pendingEmptyFallback = null; }
+    sendBtn.disabled = false;
+  }
+};
+
+function ensureStreamListeners() {
+  if (streamListening) return;
+  try {
+    if (window.chatStream) {
+      window.chatStream.onStream(streamHandler);
+      window.chatStream.onDone(doneHandler);
+      streamListening = true;
+    }
+  } catch (e) { console.error('[chat] ensureStreamListeners error', e && e.message); }
+}
+
+ensureStreamListeners();
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const text = promptEl.value.trim();
+  if (!text) return;
+  console.log('[chat] submit:', text.slice(0,120));
+  // If there's an active progressive reveal from a previous response, finalize it
+  // so it doesn't get overwritten by the new response stream. We render the
+  // accumulated content as final HTML (fallback to text) and clear the timer.
+  try {
+    if (progressiveTimer) {
+      clearInterval(progressiveTimer);
+      progressiveTimer = null;
+      if (currentAssistant) {
+        try {
+          // Prefer accumulated text if present; otherwise use current bubble content
+          const srcCandidate = (String(accumulated || '').trim().length > 0) ? String(accumulated) : (currentAssistant.textContent || currentAssistant.innerText || currentAssistant.innerHTML || '');
+          if (srcCandidate && String(srcCandidate).trim().length > 0) {
+            const finalHtml = renderMessageMarkdown(String(srcCandidate));
+            currentAssistant.innerHTML = finalHtml;
+            try { currentAssistant.dataset.finalized = 'true'; } catch (e) {}
+          } else {
+            // nothing to set — leave existing bubble content as-is and mark finalized
+            try { currentAssistant.dataset.finalized = 'true'; } catch (e) {}
+          }
+        } catch (e) {
+          try { currentAssistant.textContent = String(accumulated || currentAssistant.textContent || ''); } catch (ee) {}
+        }
+      }
+      // detach reference so new response creates its own bubble
+      currentAssistant = null;
+    }
+  } catch (e) { console.error('[chat] finalize previous reveal error', e && e.message); }
+
+  // Detach cualquier referencia a la burbuja assistant anterior para evitar
+  // que el handler de stream la borre cuando arranque la nueva respuesta.
+  currentAssistant = null;
+
+  addBubble('user', text);
+  promptEl.value = '';
+  promptEl.style.height = 'auto';
+
+  // remove any previous thinking bubble
+  try { if (currentThinking) currentThinking.remove(); } catch (e) {}
+  currentThinking = addBubble('thinking', '● pensando…');
+  console.log('[chat] thinking bubble created');
+  sendBtn.disabled = true;
+  statusBar.textContent = 'Generando respuesta…';
+  statusBar.className = 'loading';
+
+  accumulated = '';
+  seenDoneThinking = false;
+  revealIndex = 0;
+  finalizing = false;
+
+  try {
+    if (!window.chatAPI || typeof window.chatAPI.send !== 'function') {
+      throw new Error('chatAPI no disponible. Comprueba que custom_chat_preload.js está cargado.');
+    }
+
+    // Send the user's prompt directly to the model (no forced language or markers)
+    const sendPrompt = text;
+    await window.chatAPI.send(sendPrompt);
+    console.log('[chat] send() returned');
+  } catch (err) {
+    try { if (currentThinking) currentThinking.remove(); } catch (e) {}
+    addBubble('assistant', '⚠️ ' + err.message);
+    statusBar.textContent = 'Error: ' + err.message;
+    statusBar.className = 'error';
+    sendBtn.disabled = false;
+    currentThinking = null;
+    accumulated = '';
+  }
+});
+
+// ── Helper: add a message bubble ─────────────────────────────────────────────
+function addBubble(sender, text) {
+  const el = document.createElement('div');
+  el.className = `bubble ${sender}`;
+  // Ensure newlines are preserved and control chars removed
+  try {
+    const cleaned = sanitizeText(text || '');
+    el.style.whiteSpace = 'pre-wrap';
+    // Render basic Markdown to HTML (safe subset)
+    const html = renderMessageMarkdown(cleaned);
+    el.innerHTML = html;
+  } catch (e) {
+    el.textContent = text;
+  }
+  messages.appendChild(el);
+  console.log('[chat] addBubble', { sender, len: (text||'').toString().length, children: messages.children.length, lastClass: messages.lastElementChild && messages.lastElementChild.className, preview: (text||'').toString().slice(0,80).replace(/\n/g,' ') });
+  messages.scrollTop = messages.scrollHeight;
+  return el;
+}
+
+// Basic, safe Markdown renderer (handles code fences, inline code, bold, italics, headings, paragraphs)
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function renderMessageMarkdown(md) {
+  if (!md) return '';
+  // escape html first
+  let out = escapeHtml(md);
+
+  // Code fences ```lang\n...``` -> <pre><code>
+  out = out.replace(/```(\w+)?\n([\s\S]*?)```/g, (m, lang, code) => {
+    return `<pre><code class="lang-${lang||''}">${escapeHtml(code)}</code></pre>`;
+  });
+
+  // Inline code `...`
+  out = out.replace(/`([^`]+)`/g, (m, c) => `<code>${escapeHtml(c)}</code>`);
+
+  // Headings
+  out = out.replace(/^###\s+(.*)$/gm, '<h3>$1</h3>');
+  out = out.replace(/^##\s+(.*)$/gm, '<h2>$1</h2>');
+  out = out.replace(/^#\s+(.*)$/gm, '<h1>$1</h1>');
+
+  // Bold and italic
+  out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+  // Horizontal rule
+  out = out.replace(/^---$/gm, '<hr>');
+
+  // Convert double newlines to paragraphs, single newline -> <br>
+  const parts = out.split(/\n\n+/);
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i].trim();
+    if (!p) { parts[i] = ''; continue; }
+    // preserve code blocks and headings as-is
+    if (/^<pre>|^<h\d/.test(p) || /^<hr>/.test(p)) { parts[i] = p; continue; }
+    // simple list detection (lines starting with - or *)
+    if (/^(?:[-\*]\s+)/m.test(p)) {
+      const items = p.split(/\n/).map(l => l.replace(/^(?:[-\*]\s+)/, '').trim()).filter(Boolean);
+      parts[i] = '<ul>' + items.map(it => `<li>${it}</li>`).join('') + '</ul>';
+      continue;
+    }
+    // otherwise wrap in paragraph, preserving single newlines as <br>
+    parts[i] = '<p>' + p.replace(/\n/g, '<br>') + '</p>';
+  }
+  out = parts.join('\n');
+
+  return out;
+}
+
+// Render a safe HTML snippet progressively from partial markdown text.
+// Only convert matched inline markdown pairs (```, ``, **, *) so unmatched markers remain visible.
+function renderProgressiveMarkdownToHTML(raw) {
+  if (!raw) return '';
+  // Escape HTML first
+  let s = escapeHtml(raw);
+  // Handle inline code pairs `...` (only complete pairs)
+  s = s.replace(/`([^`]+)`/g, (m, code) => `<code>${escapeHtml(code)}</code>`);
+  // Handle bold **...** only when both a start and end exist
+  // This simple approach replaces non-overlapping pairs left-to-right
+  s = s.replace(/\*\*((?:[^*]|\*(?!\*))+)\*\*/g, (m, g1) => `<strong>${g1}</strong>`);
+  // Handle italic *...* (avoid those already inside <strong> or <code>)
+  s = s.replace(/\*(?:([^*]|\*(?!\*))+?)\*/g, (m, g1) => `<em>${g1}</em>`);
+  return s;
+}
+
+// Save mode on toggle change (persist across reloads)
+gpuToggle.addEventListener('change', () => {
+  localStorage.setItem('kyba_exec_mode', gpuToggle.checked ? 'gpu' : 'cpu');
+});

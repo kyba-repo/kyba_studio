@@ -1,0 +1,58 @@
+```python
+# Esta es una calculadora básica en Python.
+
+# Inicializa las variables.
+numero1 = 0
+numero2 = 0
+operador = ""
+
+# Bucle para obtener los datos del usuario.
+while True:
+    # Obtiene el primer número.
+    numero1 = float(input("Ingresa el primer número: "))
+
+    # Obtiene el segundo número.
+    numero2 = float(input("Ingresa el segundo número: "))
+
+    # Obtiene el operador.
+    operador = input("Ingresa el operador (+, -, *, /): ")
+
+    # Calcula el resultado.
+    if operador == "+":
+        resultado = numero1 + numero2
+    elif operador == "-":
+        resultado = numero1 - numero2
+    elif operador == "*":
+        resultado = numero1 * numero2
+    else:
+        resultado = numero1 / numero2
+
+    # Muestra el resultado.
+    print("El resultado es:", resultado)
+
+```
+
+**Explicación del código:**
+
+* El código comienza inicializando las variables `numero1`, `numero2` y `operador`.
+* Luego, ingresa en un bucle que se ejecuta hasta que el usuario ingresa "exit".
+* Dentro del bucle, se:
+    * Obtiene el primer número del usuario.
+    * Obtiene el segundo número del usuario.
+    * Obtiene el operador del usuario.
+    * Calcula el resultado de la operación.
+    * Muestra el resultado de la operación.
+
+**Ejemplo de uso:**
+
+```
+Ingresa el primer número: 10
+Ingresa el segundo número: 5
+Ingresa el operador +
+El resultado es: 15.0
+```
+
+**Nota:**
+
+* Este código es una calculadora básica. No es compatible con todos los operadores matemáticos.
+* Puedes modificar el código para agregar más funciones, como funciones de potencia o raíz cuadrada.

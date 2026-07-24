@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# Node / Electron
+node_modules/
+dist/
+build/
+*.log
+
+# Entorno y Secretos
+.env
+.env.local
+
+# SO
+.DS_Store
+Thumbs.db
+
+# Bases de datos SQLite / Vectoriales (ChromaDB)
+*.sqlite3
+chroma_db/
+
+# Instaladores y Builds
+release/
+*.exe
+.venv-linux/
+build-linux/
+dist-linux/
+chroma_test/
+.mypy_cache/

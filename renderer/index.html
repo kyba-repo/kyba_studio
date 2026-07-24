@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kyba Studio</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self';
+                 script-src 'self' 'unsafe-inline';
+                 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                 font-src 'self' https://fonts.gstatic.com;
+                 img-src 'self' data:;
+                 connect-src 'self' http://127.0.0.1:*;" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #0d0f1a;
+      color: #e2e8f0;
+      overflow: hidden;
+    }
+
+    /* ── Top bar ──────────────────────────────────────────────── */
+    #topbar {
+      height: 45px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      background: linear-gradient(90deg, #1a1a2e 0%, #16213e 100%);
+      border-bottom: 1px solid rgba(150, 150, 150, .25);
+      position: relative;
+      z-index: 10;
+    }
+
+    #topbar span.logo {
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-right: 8px;
+      letter-spacing: .04em;
+      color: #e2e8f0;
+    }
+
+    /* Logo letter boxes */
+    .logo-box {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border: 1px solid #ffffff;
+      border-radius: 4px;
+      background: transparent;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 12px;
+      line-height: 1;
+      box-sizing: border-box;
+    }
+
+    #topbar button,
+    .icon-btn {
+      background: transparent;
+      color: #cbd5e1;
+      border: none;
+      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all .2s;
+      outline: none;
+      padding: 0;
+    }
+
+    #topbar button:hover,
+    .icon-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+
+    #topbar select {
+      background: rgba(255, 255, 255, .07);
+      color: #cbd5e1;
+      border: 1px solid rgba(150, 150, 150, .18);
+      padding: 0 12px;
+      border-radius: 7px;
+      font-size: 12.5px;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+      outline: none;
+      height: 36px;
+    }
+
+    #topbar select:hover {
+      background: rgba(160, 160, 160, .12);
+      border-color: #b8b8bb;
+    }
+
+    #topbar select:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    /* Opciones de los selectores */
+    select option {
+      color: #000;
+      background: #fff;
+    }
+
+
+    /* Separator */
+    .sep {
+      width: 1px;
+      height: 22px;
+      background: rgba(150, 150, 150, .12);
+      margin: 0 4px;
+    }
+
+    /* Chat bubble styles */
+    .bubble {
+      max-width: 680px;
+      margin: 8px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .bubble.user {
+      background: linear-gradient(135deg, #cfcfcf, #a8a8a8);
+      color: #042018;
+      margin-left: auto;
+    }
+
+    .bubble.assistant {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(200, 200, 200, 0.04);
+      color: #e6eef6;
+    }
+
+    .bubble.thinking {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px dashed rgba(255, 255, 255, 0.03);
+      font-style: italic;
+      color: #9aa4b2;
+    }
+
+    .bubble pre {
+      background: #071022;
+      padding: 10px;
+      border-radius: 8px;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Courier New', monospace;
+      font-size: 13px;
+      color: #e6edf3;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      margin: 8px 0;
+    }
+
+    .bubble code {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Courier New', monospace;
+      font-size: 0.95em;
+    }
+
+    /* Enhanced code block styling */
+    .code-block {
+      margin: 8px 0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #071022;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .code-tools {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.03);
+      color: #cbd5e1;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .lang-tag {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-left: 8px;
+    }
+
+    .code-block pre {
+      margin: 0;
+      padding: 12px;
+      background: transparent;
+      border: none;
+    }
+
+    .bubble h1,
+    .bubble h2,
+    .bubble h3 {
+      margin: 8px 0;
+    }
+
+    .bubble ul {
+      margin: 6px 0 6px 18px;
+    }
+
+    .bubble p {
+      margin: 6px 0;
+    }
+
+    .caret {
+      opacity: .9;
+      display: inline-block;
+      width: .6em;
+    }
+
+    /* Light Mode */
+    body.light-mode {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .light-mode #topbar {
+      background: linear-gradient(90deg, #e2e8f0 0%, #f8fafc 100%);
+      border-bottom: 1px solid rgba(0, 0, 0, .1);
+    }
+
+    .light-mode #topbar span.logo {
+      color: #0f172a;
+    }
+
+    .light-mode #topbar .logo-box {
+      border-color: #0f172a;
+      color: #0f172a;
+    }
+
+    .light-mode #topbar button,
+    .light-mode .icon-btn {
+      background: transparent !important;
+      color: #475569 !important;
+      border: none !important;
+    }
+    .light-mode #topbar button:hover,
+    .light-mode .icon-btn:hover {
+      background: rgba(0,0,0,0.05) !important;
+      color: #000000 !important;
+    }
+
+    .light-mode #topbar select {
+      background: rgba(0, 0, 0, .05);
+      color: #334155;
+      border: 1px solid rgba(0, 0, 0, .15);
+    }
+
+    .light-mode #topbar button:hover,
+    .light-mode #topbar select:hover {
+      background: rgba(0, 0, 0, .1);
+      border-color: #94a3b8;
+    }
+
+    /* Modal Tabs CSS */
+    .tabs-container {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 8px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: #e6eef6;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      color: #fff;
+      background: rgba(99, 102, 241, 0.2);
+      border-bottom: 2px solid #8b5cf6;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .tab-content {
+      display: none;
+      flex-direction: column;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    .light-mode .tabs-container {
+      border-bottom-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .light-mode .tab-btn {
+      color: #64748b;
+    }
+
+    .light-mode .tab-btn:hover {
+      color: #0f172a;
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    .light-mode .tab-btn.active {
+      color: #000;
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .light-mode #settingsModal>div {
+      background: #ffffff !important;
+      border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .light-mode #settingsModal h3,
+    .light-mode #settingsModal h4 {
+      color: #0f172a !important;
+    }
+
+    .light-mode #settingsModal p,
+    .light-mode #settingsModal span {
+      color: #475569 !important;
+    }
+
+    .light-mode #settingsModal label {
+      color: #475569 !important;
+    }
+
+    .light-mode #settingsModal input,
+    .light-mode #settingsModal select,
+    .light-mode #settingsModal textarea {
+      background: #f8fafc !important;
+      color: #0f172a !important;
+      border: 1px solid rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .light-mode #settingsModal button#cancelSettings,
+    .light-mode #settingsModal button#backToAgentsBtn {
+      color: #334155 !important;
+      border-color: rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .light-mode #settingsModal #tempVal,
+    .light-mode #settingsModal #topPVal {
+      color: #000000 !important;
+    }
+
+    .light-mode #settingsModal #newProfileBtn {
+      color: #000000 !important;
+      border-color: rgba(0, 0, 0, 0.2) !important;
+      background: rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .light-mode #loadedDocsContainer {
+      background: #f8fafc !important;
+      border: 1px solid rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .light-mode #loadedDocsContainer div {
+      color: #334155 !important;
+    }
+
+    /* Loading Overlay */
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      background: #0d0f1a;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #e2e8f0;
+      transition: opacity 0.4s ease;
+    }
+
+    #loadingOverlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-logo {
+      font-size: 32px;
+      margin-bottom: 24px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .loading-logo .logo-box {
+      width: 48px;
+      height: 48px;
+      font-size: 26px;
+      border-width: 2px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      border-top-color: #818cf8;
+      animation: spin 1s ease-in-out infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading-text {
+      font-size: 14px;
+      color: #94a3b8;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="loading-logo">
+      <span class="logo-box">K</span>
+      <span class="logo-box">Y</span>
+      <span class="logo-box">B</span>
+      <span class="logo-box">A</span>
+    </div>
+    <div class="spinner"></div>
+    <div class="loading-text" data-i18n="msg_loading">Loading...</div>
+  </div>
+
+  <!-- ── Top bar ── -->
+  <div id="topbar">
+    <span class="logo"><span class="logo-box">K</span><span class="logo-box">Y</span><span
+        class="logo-box">B</span><span class="logo-box">A</span></span>
+
+    <div style="flex:1;"></div>
+    <select id="lang-select" style="margin-right: 8px;">
+      <option value="en">EN</option>
+      <option value="es" selected>ES</option>
+    </select>
+    <button id="themeToggleBtn" title="Change theme" style="margin-right: 4px;">
+      <svg id="themeIconSVG" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+    </button>
+    <button id="settingsBtn" title="Settings">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Settings modal -->
+  <div id="settingsModal"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:200;">
+    <div
+      style="width:800px; max-width:95%; background:#0f1724; border-radius:10px; padding:16px; border:1px solid rgba(255,255,255,0.04); display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="margin:0; color:#e6eef6;" data-i18n="title_settings">Configuración</h3>
+        <button id="closeSettingsModalBtn" style="background:transparent; border:none; color:#cbd5e1; font-size:20px; cursor:pointer;" title="Close">&times;</button>
+      </div>
+
+      <div class="tabs-container">
+        <button class="tab-btn active" data-target="tab-modelos" data-i18n="tab_models">Modelos</button>
+        <button class="tab-btn" data-target="tab-agentes" data-i18n="tab_agents">Agentes</button>
+        <button class="tab-btn" data-target="tab-mcp">MCP Servers</button>
+      </div>
+
+      <div id="tab-modelos" class="tab-content active">
+
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <select id="profileSelect"
+          style="flex:1; background:#071022; color:#cbd5e1; border:1px solid rgba(255,255,255,0.04); padding:6px; border-radius:6px; outline:none;">
+          <!-- Populated dynamically -->
+        </select>
+        <button id="newProfileBtn"
+          style="background:rgba(255,255,255,0.05); color:#cbd5e1; border:1px solid rgba(255,255,255,0.06); padding:6px 10px; border-radius:6px; cursor:pointer;"
+          data-i18n="btn_new">New</button>
+      </div>
+
+      <div id="profileEditor">
+        <div style="display:flex; gap:12px; margin-bottom:10px;">
+          <div style="flex:1;">
+            <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:4px;"
+              data-i18n="lbl_profile_name">Profile Name</label>
+            <input type="text" id="profileName"
+              style="width:100%; background:#071022; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); padding:6px; border-radius:6px; font-size:13px; outline:none;" />
+          </div>
+          <div style="flex:1;">
+            <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:4px;"
+              data-i18n="lbl_base_model">Base Model</label>
+            <input type="text" id="profileBaseModel" list="profileBaseModelList" onfocus="this.select()"
+              style="width:100%; background:#071022; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); padding:6px; border-radius:6px; font-size:13px; outline:none;" placeholder="Escribe o selecciona un modelo (ej. llava)" />
+            <datalist id="profileBaseModelList">
+              <option value="gemma4:e2b">gemma4:e2b</option>
+              <option value="gpt-oss:20b">gpt-oss:20b</option>
+              <option value="qwen:0.5b">qwen:0.5b</option>
+              <option value="llama3.2:1b">llama3.2:1b</option>
+              <option value="qwen2.5:1.5b">qwen2.5:1.5b</option>
+              <option value="gemma2:2b">gemma2:2b</option>
+            </datalist>
+          </div>
+        </div>
+
+
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px;">
+          <label style="flex:1; color:#94a3b8; font-size:13px;" data-i18n="lbl_creativity">Creativity</label>
+          <input id="tempSlider" type="range" min="0" max="1" step="0.01" value="0.2" style="flex:2;" />
+          <span id="tempVal" style="color:#e6eef6; font-size:13px; width:30px; text-align:right;">0.2</span>
+        </div>
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px;">
+          <label style="flex:1; color:#94a3b8; font-size:13px;" data-i18n="lbl_response_length">Response Length</label>
+          <input id="topPSlider" type="range" min="0" max="1" step="0.01" value="0.9" style="flex:2;" />
+          <span id="topPVal"
+            style="color:#e6eef6; font-size:13px; font-weight:600; width:30px; text-align:right;">0.9</span>
+        </div>
+
+        <div
+          style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; margin-top:8px;">
+          <label style="color:#94a3b8; font-size:12px;" data-i18n="lbl_instructions">Instructions</label>
+          <button id="ingestBtn"
+            style="background:rgba(99,102,241,0.15); color:#818cf8; border:1px solid rgba(99,102,241,0.3); padding:4px 10px; border-radius:5px; font-size:11px; cursor:pointer;"
+            data-i18n="btn_load_context">Load Context Documents</button>
+        </div>
+        <textarea id="modelPrompt" rows="8"
+          style="width:100%; height:200px; background:#071022; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); padding:8px; border-radius:8px; font-family:Inter, sans-serif; font-size:13px; resize:none;"
+          placeholder="Base instructions for this model..." data-i18n="ph_instructions"></textarea>
+
+        <div style="margin-top: 12px; margin-bottom: 8px;">
+          <label style="color:#94a3b8; font-size:12px; display:block; margin-bottom:6px;"
+            data-i18n="lbl_indexed_docs">Indexed Documents in Knowledge Base</label>
+          <div id="loadedDocsContainer"
+            style="background:#071022; border:1px solid rgba(255,255,255,0.04); border-radius:6px; padding:8px; max-height:100px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;">
+            <span style="color:#64748b; font-size:12px;" data-i18n="msg_loading">Loading...</span>
+          </div>
+        </div>
+      </div>
+      </div> <!-- End tab-modelos -->
+
+      <div id="tab-agentes" class="tab-content">
+        <!-- List View -->
+        <div id="agentsListView" style="display: flex; flex-direction: column;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h4 style="color:#cbd5e1; margin:0;" data-i18n="agent_tab_title">Mis Agentes</h4>
+            <button id="addAgentBtn" style="background:rgba(255,255,255,0.05); color:#cbd5e1; border:1px solid rgba(255,255,255,0.06); padding:6px 12px; border-radius:6px; cursor:pointer;" data-i18n="agent_btn_add">+ Agregar</button>
+          </div>
+          <p style="color:#94a3b8; font-size: 12px; margin-bottom: 12px;" data-i18n="agent_desc_history">Histórico de agentes creados. Selecciona uno para editarlo o actívalo como orquestador.</p>
+          <div id="agentsListContainer" style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:12px; max-height:250px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+            <!-- Rendered dynamically -->
+            <span style="color:#64748b; font-size:12px;" data-i18n="agent_msg_no_agents">No hay agentes creados.</span>
+          </div>
+        </div>
+
+        <!-- Edit View -->
+        <div id="agentEditView" style="display: none; flex-direction: column;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+            <button id="backToAgentsBtn" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#cbd5e1; padding:6px 10px; border-radius:6px; cursor:pointer;" title="Volver a la lista" data-i18n-title="agent_btn_back" data-i18n="agent_btn_back">← Volver</button>
+            <div style="flex:1;">
+              <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:4px;" data-i18n="agent_lbl_name">Nombre del Agente</label>
+              <input type="text" id="agentNameInput" placeholder="Ej: Agente Programador" style="width:100%; background:#071022; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); padding:8px; border-radius:6px; font-size:13px; outline:none;" data-i18n="agent_ph_name" />
+            </div>
+            <button id="saveAgentBtn" style="background:linear-gradient(135deg,#10b981,#059669); border:none; color:#fff; padding:8px 12px; border-radius:6px; cursor:pointer; margin-top:20px; font-size:13px;" data-i18n="agent_btn_save">Guardar Agente</button>
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <h4 style="color:#cbd5e1; margin-bottom: 8px;" data-i18n="agent_title_orch">Orquestador</h4>
+            <p style="color:#94a3b8; font-size: 12px; margin-bottom: 8px;" data-i18n="agent_desc_orch">
+              Selecciona el modelo principal que delegará tareas a los sub-agentes en esta configuración.
+            </p>
+            <select id="orchestratorSelect" style="width:100%; background:#071022; color:#cbd5e1; border:1px solid rgba(255,255,255,0.04); padding:8px; border-radius:6px; outline:none; margin-bottom: 12px;">
+              <option value="none" data-i18n="agent_opt_none">Ninguno (Agente sin orquestador)</option>
+            </select>
+
+            <h4 style="color:#cbd5e1; margin-bottom: 8px;" data-i18n="agent_title_sub">Sub-Agentes Disponibles</h4>
+            <p style="color:#94a3b8; font-size: 12px; margin-bottom: 8px;" data-i18n="agent_desc_sub">
+              Selecciona los perfiles que el orquestador podrá usar como herramientas.
+            </p>
+            <div id="subAgentsList" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+              <!-- Rendered dynamically via app.js -->
+              <span style="color:#64748b; font-size:12px;" data-i18n="agent_msg_no_profiles">No hay perfiles personalizados creados.</span>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="color:#cbd5e1; margin-bottom: 8px;" data-i18n="agent_title_behavior">Comportamiento Agéntico</h4>
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 8px;">
+              <p style="color:#94a3b8; font-size: 13px; margin-bottom: 12px;" data-i18n="agent_desc_behavior">
+                Si habilitaste la "aprobación automática de herramientas" en el modo agente, puedes revocarla aquí para volver a pedir confirmación manual antes de ejecutar comandos o acciones en tu sistema.
+              </p>
+              <button id="revokeAutoApproveBtn" style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); color:#ef4444; padding:6px 12px; border-radius:6px; cursor:pointer; font-size: 13px;" data-i18n="agent_btn_revoke">Revocar Aprobación Automática</button>
+            </div>
+          </div>
+        </div>
+      </div> <!-- End tab-agentes -->
+
+      <!-- MCP Tab -->
+      <div id="tab-mcp" class="tab-content">
+        <!-- List View -->
+        <div id="mcpListView" style="display: flex; flex-direction: column;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <span style="color:#94a3b8; font-size:13px;">Servidores MCP Configurados</span>
+            <button id="addMcpBtn" style="background:rgba(255,255,255,0.05); color:#cbd5e1; border:1px solid rgba(255,255,255,0.06); padding:6px 10px; border-radius:6px; cursor:pointer;">+ Añadir MCP</button>
+          </div>
+          <div id="mcpListContainer" style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+        
+        <!-- Edit View -->
+        <div id="mcpEditView" style="display: none; flex-direction: column;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+            <button id="backToMcpBtn" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#cbd5e1; padding:6px 10px; border-radius:6px; cursor:pointer;">← Volver</button>
+            <span style="color:#cbd5e1; font-weight:500;">Configurar Servidor MCP</span>
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:4px;">Nombre</label>
+            <input type="text" id="mcpNameInput" placeholder="Ej: Navegador Puppeteer" style="width:100%; background:#071022; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); padding:8px; border-radius:6px; font-size:13px; outline:none;" />
+          </div>
+          
+          <div style="margin-bottom: 12px;">
+            <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:4px;">Comando</label>
+            <input type="text" id="mcpCommandInput" placeholder="Ej: npx o python" style="width:100%; background:#071022; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); padding:8px; border-radius:6px; font-size:13px; outline:none;" />
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:4px;">Argumentos (separados por espacio)</label>
+            <input type="text" id="mcpArgsInput" placeholder="Ej: -y @modelcontextprotocol/server-puppeteer" style="width:100%; background:#071022; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); padding:8px; border-radius:6px; font-size:13px; outline:none;" />
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:4px;">Variables de Entorno (Opcional, formato: KEY=VALUE, KEY2=VALUE2)</label>
+            <input type="text" id="mcpEnvInput" placeholder="Ej: GDRIVE_CREDENTIALS_PATH=/ruta/credenciales.json" style="width:100%; background:#071022; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); padding:8px; border-radius:6px; font-size:13px; outline:none;" />
+          </div>
+          
+          <button id="saveMcpBtn" style="background:linear-gradient(135deg,#10b981,#059669); border:none; color:#fff; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:13px; align-self: flex-start;">Guardar MCP</button>
+        </div>
+      </div> <!-- End tab-mcp -->
+
+      <div style="display:flex; justify-content:space-between; gap:8px; margin-top:16px;">
+        <button id="deleteProfileBtn"
+          style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.2); color:#ef4444; padding:8px 12px; border-radius:8px; display:none; cursor:pointer;"
+          data-i18n="btn_delete_profile">Delete
+          Profile</button>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <button id="cancelSettings"
+            style="background:transparent;border:1px solid rgba(255,255,255,0.06);color:#cbd5e1;padding:8px 12px;border-radius:8px;cursor:pointer;"
+            data-i18n="btn_cancel">Cancel</button>
+          <button id="saveSettings"
+            style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;"
+            data-i18n="btn_save">Save
+            and Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="i18n.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>

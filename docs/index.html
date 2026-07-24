@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- SEO Optimization -->
+    <title>Kyba Studio</title>
+    <meta name="description" content="Transforming how we work with AI.">
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+    <!-- CSS y JS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Navegación -->
+    <nav class="navbar" id="navbar">
+        <a href="#inicio" class="logo-link">
+            <span class="kyba-logo">
+                <span class="logo-box">K</span>
+                <span class="logo-box">Y</span>
+                <span class="logo-box">B</span>
+                <span class="logo-box">A</span>
+            </span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="#inicio" data-i18n="nav_home">Inicio</a></li>
+            <li><a href="#como-funciona" data-i18n="nav_how">Cómo funciona</a></li>
+            <li><a href="#caracteristicas" data-i18n="nav_features">Características</a></li>
+            <li><a href="#requisitos" data-i18n="nav_req">Requisitos</a></li>
+            <li>
+                <select id="lang-select" class="lang-selector"
+                    style="margin-left: 1rem; padding: 0.3rem; border-radius: 4px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3); font-family: inherit; font-size: 0.9rem;">
+                    <option value="es" style="color: black;">ES</option>
+                    <option value="en" style="color: black;">EN</option>
+                </select>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Sección Principal (Hero) -->
+    <header class="hero" id="inicio">
+        <div class="hero-content">
+            <h1 class="fade-in" data-i18n="hero_title">Ejecuta modelos de IA en tu PC</h1>
+            <p class="fade-in delay-1" data-i18n="hero_subtitle">Una herramienta diseñada para cambiar la forma en que
+                trabajas diariamente con
+                IA.
+                Fácil, segura y privada.</p>
+            <div class="cta-container fade-in delay-2">
+                <div class="cta-group">
+                    <a href="#empezar" class="btn btn-primary" data-i18n="btn_download">Descargar</a>
+                    <a href="https://github.com/kyba-repo/kyba_studio" target="_blank" class="btn btn-secondary"
+                        data-i18n="btn_github">Ver en
+                        GitHub</a>
+                </div>
+                <p class="license-text" data-i18n="license_text">Kyba Studio es gratuito para uso personal y educativo
+                </p>
+            </div>
+        </div>
+        <div class="hero-graphic fade-in delay-3">
+            <div class="glass-card main-card" style="padding: 0.5rem;">
+                <img id="img-hero" src="main-screenshot.png" alt="Kyba App"
+                    style="width: 100%; border-radius: 12px; display: block;">
+            </div>
+        </div>
+    </header>
+
+    <!-- Sección Cómo Funciona -->
+    <section class="how-it-works" id="como-funciona">
+        <div class="section-title">
+            <h2 data-i18n="how_title">Cómo funciona</h2>
+        </div>
+        <div class="step-container">
+            <div class="step-row">
+                <div class="step-image fade-in-scroll" style="flex: 0.66;">
+                    <div class="glass-card"
+                        style="padding: 0.5rem; transform: perspective(1000px) rotateY(5deg) rotateX(2deg); transition: transform 0.5s ease;">
+                        <img src="modelos.png" alt="Descarga de modelo"
+                            style="width: 100%; border-radius: 12px; display: block;">
+                    </div>
+                </div>
+                <div class="step-text fade-in-scroll delay-1">
+                    <h3 data-i18n="step1_title">Paso 1</h3>
+                    <p data-i18n="step1_desc">Selecciona un modelo en la barra inferior.</p>
+                </div>
+            </div>
+
+            <div class="step-row">
+                <div class="step-text fade-in-scroll">
+                    <h3 data-i18n="step2_title">Paso 2</h3>
+                    <p data-i18n="step2_desc">Hace una consulta y el modelo comenzará a descargarse. Listo! ya tenes tu
+                        modelo listo para
+                        trabajar</p>
+                </div>
+                <div class="step-image fade-in-scroll delay-1" style="flex: 1.2;">
+                    <div class="glass-card"
+                        style="padding: 0.5rem; transform: perspective(1000px) rotateY(-5deg) rotateX(2deg); transition: transform 0.5s ease;">
+                        <img id="img-download" src="descarga_completa.png" alt="Descarga completada"
+                            style="width: 100%; border-radius: 12px; display: block;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-row">
+                <div class="step-image fade-in-scroll" style="flex: 1.2;">
+                    <div class="glass-card"
+                        style="padding: 0.5rem; transform: perspective(1000px) rotateY(5deg) rotateX(2deg); transition: transform 0.5s ease;">
+                        <img id="img-tuning" src="tuning.png" alt="Personalización de modelo"
+                            style="width: 100%; border-radius: 12px; display: block;">
+                    </div>
+                </div>
+                <div class="step-text fade-in-scroll delay-1">
+                    <h3 data-i18n="step3_title">Bonus Track</h3>
+                    <p data-i18n="step3_desc">Podes crear tu modelo personalizado utilizando tus propios parámetros,
+                        instrucciones y bases de
+                        conocimiento.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sección de Características -->
+    <section class="features" id="caracteristicas">
+        <div class="section-title">
+            <h2 data-i18n="feat_title">Características</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card glass-card">
+                <div class="icon">⚡</div>
+                <h3 id="feat-1" data-i18n="feat1_title">Rendimiento increíble</h3>
+                <p data-i18n="feat1_desc">Optimizado para funcionar en tarjetas gráficas dedicadas de Nvidia y AMD, así
+                    como tambien en
+                    gráficos integrados que soporten la tecnología Vulkan.
+                </p>
+            </div>
+            <div class="feature-card glass-card">
+                <div class="icon">🔒</div>
+                <h3 id="feat-2" data-i18n="feat2_title">Privacidad Total</h3>
+                <p data-i18n="feat2_desc">La privacidad es nuestra prioridad. Todos los modelos y datos se procesan
+                    localmente en tu máquina,
+                    sin enviar información sensible a internet.
+                </p>
+            </div>
+            <div class="feature-card glass-card">
+                <div class="icon">💡</div>
+                <h3 id="feat-3" data-i18n="feat3_title">Elegí tu modelo</h3>
+                <p data-i18n="feat3_desc">Ya sea que elijas GPT-OSS, Qwen, Gemma o Llama, con Kyba Studio podes usar el
+                    modelo que más se
+                    ajuste a tus necesidades.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sección de Requisitos -->
+    <section class="features" id="requisitos">
+        <div class="section-title">
+            <h2 data-i18n="req_title">Requisitos</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card glass-card">
+                <div class="icon">💻</div>
+                <h3 data-i18n="req_min_title">Mínimos</h3>
+                <ul class="requirements-list">
+                    <li data-i18n="req_min_cpu">CPU: Intel o AMD compatible con instrucciones AVX2 / FP16</li>
+                    <li data-i18n="req_min_gpu">GPU: Nvidia, AMD o gráficos integrados Intel compatibles con Vulkan</li>
+                    <li data-i18n="req_min_ram">RAM: 8 GB </li>
+                    <li data-i18n="req_min_vram">VRAM: 3 GB </li>
+                </ul>
+            </div>
+            <div class="feature-card glass-card">
+                <div class="icon">🚀</div>
+                <h3 data-i18n="req_rec_title">Recomendados</h3>
+                <ul class="requirements-list">
+                    <li data-i18n="req_rec_cpu">CPU: Ryzen series 2000 o superior, Intel core i5 de 11ª generación o
+                        superior</li>
+                    <li data-i18n="req_rec_gpu">GPU: Nvidia series RTX 2000 o superior; AMD Radeon RX series 7000 o
+                        superior</li>
+                    <li data-i18n="req_rec_ram">RAM: 16 GB o superior</li>
+                    <LI data-i18n="req_rec_vram">VRAM: 10 GB o superior</LI>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pie de página -->
+    <footer>
+        <p data-i18n="footer_text">&copy; 2026 KYBA. Todos los derechos reservados.</p>
+    </footer>
+
+    <script src="i18n.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
