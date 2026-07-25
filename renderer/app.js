@@ -87,52 +87,9 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function renderActiveModelSelect() {
-    if (!activeModelSelect) return;
-    loadData();
-    loadAgentsData(); // ensure customAgents is loaded
-
-    activeModelSelect.innerHTML = '';
-    
-    // OptGroup for Models
-    const modelsGroup = document.createElement('optgroup');
-    modelsGroup.label = 'Modelos';
-    const defaultOpt = document.createElement('option');
-    defaultOpt.value = 'default';
-    defaultOpt.textContent = defaultProfile.name;
-    modelsGroup.appendChild(defaultOpt);
-    
-    customModels.forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = m.name;
-      modelsGroup.appendChild(opt);
-    });
-    activeModelSelect.appendChild(modelsGroup);
-
-    // OptGroup for Agents
-    if (customAgents && customAgents.length > 0) {
-      const agentsGroup = document.createElement('optgroup');
-      agentsGroup.label = 'Agentes';
-      customAgents.forEach(a => {
-        const opt = document.createElement('option');
-        opt.value = a.id;
-        opt.textContent = a.name;
-        agentsGroup.appendChild(opt);
-      });
-      activeModelSelect.appendChild(agentsGroup);
-    }
-
-    activeModelSelect.value = getActiveModelId();
-  }
-
-  activeModelSelect && activeModelSelect.addEventListener('change', e => {
-    setActiveModelId(e.target.value);
-  });
-
-  // Render on startup
-  renderActiveModelSelect();
-
+  // ── Topbar Dropdowns (Model & Agent) ──────────────────────────────────────
+  // (Moved back to custom_chat.html / custom_chat.js as requested by user)
+  
   // ── Settings modal handling ───────────────────────────────────────────────
 
   function populateProfileSelect() {
@@ -427,6 +384,58 @@ window.addEventListener('DOMContentLoaded', () => {
       const actionsDiv = document.createElement('div');
       actionsDiv.style.display = 'flex';
       actionsDiv.style.gap = '8px';
+      actionsDiv.style.alignItems = 'center';
+
+      // Toggle Switch
+      const toggleLabel = document.createElement('label');
+      toggleLabel.className = 'mcp-toggle-switch';
+      toggleLabel.style.position = 'relative';
+      toggleLabel.style.display = 'inline-block';
+      toggleLabel.style.width = '34px';
+      toggleLabel.style.height = '20px';
+      toggleLabel.style.marginRight = '8px';
+
+      const toggleInput = document.createElement('input');
+      toggleInput.type = 'checkbox';
+      toggleInput.checked = mcp.enabled || false;
+      toggleInput.style.opacity = '0';
+      toggleInput.style.width = '0';
+      toggleInput.style.height = '0';
+
+      const toggleSlider = document.createElement('span');
+      toggleSlider.className = 'mcp-slider round';
+      toggleSlider.style.position = 'absolute';
+      toggleSlider.style.cursor = 'pointer';
+      toggleSlider.style.top = '0';
+      toggleSlider.style.left = '0';
+      toggleSlider.style.right = '0';
+      toggleSlider.style.bottom = '0';
+      toggleSlider.style.backgroundColor = mcp.enabled ? '#10b981' : '#475569';
+      toggleSlider.style.transition = '.4s';
+      toggleSlider.style.borderRadius = '34px';
+
+      const toggleKnob = document.createElement('span');
+      toggleKnob.style.position = 'absolute';
+      toggleKnob.style.content = '""';
+      toggleKnob.style.height = '14px';
+      toggleKnob.style.width = '14px';
+      toggleKnob.style.left = mcp.enabled ? '17px' : '3px';
+      toggleKnob.style.bottom = '3px';
+      toggleKnob.style.backgroundColor = 'white';
+      toggleKnob.style.transition = '.4s';
+      toggleKnob.style.borderRadius = '50%';
+
+      toggleSlider.appendChild(toggleKnob);
+      toggleLabel.appendChild(toggleInput);
+      toggleLabel.appendChild(toggleSlider);
+
+      toggleInput.addEventListener('change', () => {
+        mcp.enabled = toggleInput.checked;
+        toggleSlider.style.backgroundColor = mcp.enabled ? '#10b981' : '#475569';
+        toggleKnob.style.left = mcp.enabled ? '17px' : '3px';
+        localStorage.setItem('kyba_mcp_servers', JSON.stringify(customMcpServers));
+        syncMcpToBackend();
+      });
 
       const editBtn = document.createElement('button');
       editBtn.className = 'icon-btn';
@@ -452,6 +461,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       };
 
+      actionsDiv.appendChild(toggleLabel);
       actionsDiv.appendChild(editBtn);
       actionsDiv.appendChild(deleteBtn);
       div.appendChild(nameSpan);
@@ -498,7 +508,7 @@ window.addEventListener('DOMContentLoaded', () => {
       let mcp = customMcpServers.find(m => m.id === currentEditingMcpId);
       let isNew = false;
       if (!mcp) {
-        mcp = { id: currentEditingMcpId };
+        mcp = { id: currentEditingMcpId, enabled: false };
         isNew = true;
       }
       mcp.name = document.getElementById('mcpNameInput').value || 'MCP Sin Nombre';

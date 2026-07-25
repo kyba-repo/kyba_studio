@@ -370,7 +370,7 @@ app.whenReady().then(async () => {
         body: JSON.stringify({
           model: targetModel,
           keep_alive: '15m',
-          options: { temperature: 0.2, num_ctx: 8192 }
+          options: { temperature: 0.2, num_ctx: 16384 }
         })
       });
       console.log(`[Kyba] Model ${targetModel} preloaded successfully.`);

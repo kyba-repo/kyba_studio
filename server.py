@@ -137,6 +137,10 @@ class MCPConnectionManager:
         
         for cfg in servers_config:
             try:
+                # Default to disabled if not specified
+                if not cfg.get("enabled", False):
+                    continue
+                    
                 cmd = cfg.get("command")
                 if not cmd:
                     continue
@@ -487,7 +491,7 @@ def chat(payload: ChatRequest) -> dict[str, Any]:
         else:
             user_prompt = f"Context:\n{context}\n{extra_context}\nQuestion: {payload.question}"
         options = payload.options if getattr(payload, 'options', None) else {"temperature": 0.2}
-        options["num_ctx"] = 8192
+        options["num_ctx"] = 16384
         
         messages = [{"role": "system", "content": system_prompt}]
         if payload.history:
@@ -857,7 +861,7 @@ async def agent_execute(payload: AgentExecuteRequest) -> dict[str, Any]:
             
             agent_system = target_agent.get("systemPrompt", "You are an AI assistant.")
             agent_model = target_agent.get("baseModel", "gemma4:e2b")
-            agent_options = {"temperature": float(target_agent.get("temperature", 0.2)), "top_p": float(target_agent.get("top_p", 0.9)), "num_ctx": 8192}
+            agent_options = {"temperature": float(target_agent.get("temperature", 0.2)), "top_p": float(target_agent.get("top_p", 0.9)), "num_ctx": 16384}
             
             llm = ChatOllama(model=agent_model, base_url=llm_base_url, **agent_options)
             messages = [{"role": "system", "content": agent_system}]

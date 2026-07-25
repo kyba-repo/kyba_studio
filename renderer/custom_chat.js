@@ -383,24 +383,168 @@ if (window.chatStream && typeof window.chatStream.onClearChat === 'function') {
 
 updateStatusBar();
 
-// ── Agent Mode Toggle ────────────────────────────────────────────────────────
+// ── Model & Agent Mode Toggle ───────────────────────────────────────────────
+const modelBtn = document.getElementById('modelBtn');
+const modelMenu = document.getElementById('modelMenu');
+const modelBtnText = document.getElementById('modelBtnText');
 const agentBtn = document.getElementById('agentBtn');
 const agentMenu = document.getElementById('agentMenu');
 const agentModeVal = document.getElementById('agentModeVal');
+
+function renderActiveModelSelect() {
+  if (!modelMenu || !modelBtnText) return;
+  let customModels = [];
+  try {
+    customModels = JSON.parse(localStorage.getItem('kyba_custom_models') || '[]');
+  } catch (e) {}
+
+  let migrated = false;
+  
+  // Clear old model if it existed in localStorage
+  const originalLength = customModels.length;
+  customModels = customModels.filter(m => m.baseModel !== 'qwen3.5:0.8b');
+  if (customModels.length !== originalLength) {
+    migrated = true;
+  }
+  if (!customModels.find(m => m.baseModel === 'qwen:0.5b')) {
+    customModels.unshift({ id: 'qwen-default', name: 'Fast Qwen (qwen:0.5b)', baseModel: 'qwen:0.5b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
+    migrated = true;
+  }
+  if (!customModels.find(m => m.baseModel === 'llama3.2:1b')) {
+    customModels.unshift({ id: 'llama-32', name: 'Llama 3.2 (llama3.2:1b)', baseModel: 'llama3.2:1b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
+    migrated = true;
+  }
+  if (!customModels.find(m => m.baseModel === 'qwen2.5:1.5b')) {
+    customModels.unshift({ id: 'qwen-25', name: 'Qwen 2.5 (qwen2.5:1.5b)', baseModel: 'qwen2.5:1.5b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
+    migrated = true;
+  }
+  if (!customModels.find(m => m.baseModel === 'gemma2:2b')) {
+    customModels.unshift({ id: 'gemma-2', name: 'Gemma 2 (gemma2:2b)', baseModel: 'gemma2:2b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
+    migrated = true;
+  }
+  if (!customModels.find(m => m.baseModel === 'gpt-oss:20b')) {
+    customModels.unshift({ id: 'gpt-default', name: 'GPT OSS (gpt-oss:20b)', baseModel: 'gpt-oss:20b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
+    migrated = true;
+  }
+  if (migrated) {
+    localStorage.setItem('kyba_custom_models', JSON.stringify(customModels));
+    window.dispatchEvent(new Event('storage')); 
+  }
+
+  const activeId = localStorage.getItem('kyba_active_model_id') || 'default';
+
+  let customAgents = [];
+  try {
+    customAgents = JSON.parse(localStorage.getItem('kyba_custom_agents') || '[]');
+  } catch(e) {}
+
+  modelMenu.innerHTML = '';
+
+  const modelsHeader = document.createElement('div');
+  modelsHeader.style.padding = '8px 12px 4px 12px';
+  modelsHeader.style.fontSize = '10px';
+  modelsHeader.style.color = '#64748b';
+  modelsHeader.style.textTransform = 'uppercase';
+  modelsHeader.style.letterSpacing = '0.05em';
+  modelsHeader.style.pointerEvents = 'none';
+  modelsHeader.textContent = 'Modelos';
+  modelMenu.appendChild(modelsHeader);
+
+  const options = [{ id: 'default', name: 'Base Model (gemma4:e2b)' }, ...customModels];
+
+  options.forEach(m => {
+    const opt = document.createElement('div');
+    opt.className = 'model-option';
+    if (m.id === activeId) opt.classList.add('selected');
+    opt.dataset.value = m.id;
+    opt.textContent = m.name;
+
+    if (m.id === activeId) {
+      const activeName = m.id === 'default' && window.i18n ? window.i18n.t('chat_model_title') : m.name;
+      modelBtnText.textContent = activeName;
+    }
+
+    opt.addEventListener('click', (e) => {
+      e.stopPropagation();
+      localStorage.setItem('kyba_active_model_id', m.id);
+      window.dispatchEvent(new Event('kyba_model_changed'));
+      renderActiveModelSelect();
+      modelMenu.style.display = 'none';
+    });
+
+    modelMenu.appendChild(opt);
+  });
+
+  if (customAgents && customAgents.length > 0) {
+    const agentsHeader = document.createElement('div');
+    agentsHeader.style.padding = '12px 12px 4px 12px';
+    agentsHeader.style.fontSize = '10px';
+    agentsHeader.style.color = '#64748b';
+    agentsHeader.style.textTransform = 'uppercase';
+    agentsHeader.style.letterSpacing = '0.05em';
+    agentsHeader.style.pointerEvents = 'none';
+    agentsHeader.style.borderTop = '1px solid rgba(255,255,255,0.05)';
+    agentsHeader.style.marginTop = '4px';
+    agentsHeader.textContent = 'Agentes';
+    modelMenu.appendChild(agentsHeader);
+
+    customAgents.forEach(a => {
+      const opt = document.createElement('div');
+      opt.className = 'model-option';
+      if (a.id === activeId) opt.classList.add('selected');
+      opt.dataset.value = a.id;
+      opt.textContent = a.name;
+
+      if (a.id === activeId) {
+        modelBtnText.textContent = a.name;
+      }
+
+      opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        localStorage.setItem('kyba_active_model_id', a.id);
+        window.dispatchEvent(new Event('kyba_model_changed'));
+        renderActiveModelSelect();
+        modelMenu.style.display = 'none';
+      });
+
+      modelMenu.appendChild(opt);
+    });
+  }
+}
+
+if (modelBtn && modelMenu) {
+  modelBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (modelMenu.style.display === 'block') {
+      modelMenu.style.display = 'none';
+    } else {
+      modelMenu.style.display = 'block';
+    }
+    if (reasoningMenu) reasoningMenu.style.display = 'none';
+    if (agentMenu) agentMenu.style.display = 'none';
+  });
+
+  renderActiveModelSelect();
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'kyba_custom_models') renderActiveModelSelect();
+  });
+  window.addEventListener('kyba_storage_changed', () => {
+    renderActiveModelSelect();
+  });
+}
+
 let savedAgentMode = localStorage.getItem('kyba_agent_mode');
 let agentModeEnabled = savedAgentMode === 'true';
 
 if (agentBtn && agentMenu) {
-  // Initialize UI based on saved state
   const initialValue = agentModeEnabled ? 'on' : 'off';
   const initOpt = Array.from(agentMenu.querySelectorAll('.agent-option')).find(o => o.dataset.value === initialValue);
   if (initOpt) {
     agentMenu.querySelectorAll('.agent-option').forEach(o => {
       o.classList.remove('selected');
-      o.style.background = 'transparent';
     });
     initOpt.classList.add('selected');
-    initOpt.style.background = 'rgba(99,102,241,0.15)';
     if (agentModeVal) agentModeVal.textContent = initOpt.textContent;
   }
 
@@ -421,10 +565,8 @@ if (agentBtn && agentMenu) {
       e.stopPropagation();
       agentMenu.querySelectorAll('.agent-option').forEach(o => {
         o.classList.remove('selected');
-        o.style.background = 'transparent';
       });
       opt.classList.add('selected');
-      opt.style.background = 'rgba(99,102,241,0.15)';
       agentModeEnabled = (opt.dataset.value === 'on');
       localStorage.setItem('kyba_agent_mode', agentModeEnabled.toString());
       if (agentModeVal) agentModeVal.textContent = opt.textContent;
@@ -487,8 +629,9 @@ let renderTimer = null;
 let lastRendered = '';
 let progressiveTimer = null;
 let revealIndex = 0; // index of revealed word-token
-const REVEAL_DELAY_MS = 80; // ms per token (word + trailing spaces)
+const REVEAL_DELAY_MS = 0; // ms per token (word + trailing spaces)
 let finalizing = false;
+let generationStartTime = 0;
 
 function tokenizeForReveal(s) {
   // split into tokens of non-space characters plus following spaces, preserving punctuation
@@ -503,6 +646,9 @@ function isSignificantText(s) {
 }
 
 const streamHandler = (_, chunk) => {
+  if (generationStartTime === 0) {
+    generationStartTime = Date.now();
+  }
   try {
     const raw = (chunk || '').toString();
     const cleaned = sanitizeText(raw);
@@ -1053,6 +1199,15 @@ const doneHandler = (_, payload) => {
             badge.innerHTML = `<span data-i18n="chat_generated_by">${window.i18n ? window.i18n.t('chat_generated_by') || '⚡ Generado por' : '⚡ Generado por'}</span> ${displayName}`;
           }
 
+          if (generationStartTime > 0 && finalText) {
+             const durSec = (Date.now() - generationStartTime) / 1000;
+             if (durSec > 0.5) {
+                const tokens = Math.ceil(finalText.length / 4);
+                const tps = (tokens / durSec).toFixed(1);
+                badge.innerHTML += `<span style="float:right;" title="Tokens por segundo (estimado)">🚀 ${tps} t/s</span>`;
+             }
+          }
+
           badge.style.fontSize = '0.70rem';
           badge.style.color = 'var(--text-secondary, #888)';
           badge.style.marginTop = '4px';
@@ -1087,6 +1242,7 @@ const doneHandler = (_, payload) => {
     // reset assistant streaming state
     // keep currentAssistant so final bubble stays; timers will stop when reveal completes
     receivedAnyChunk = false;
+    generationStartTime = 0;
     if (pendingEmptyFallback) { clearTimeout(pendingEmptyFallback); pendingEmptyFallback = null; }
   }
 };
@@ -1182,7 +1338,7 @@ form.addEventListener('submit', async e => {
     } catch (e) { }
   }
 
-  let options = { temperature: 0.2, top_p: 0.9, num_ctx: 8192 };
+  let options = { temperature: 0.2, top_p: 0.9, num_ctx: 16384 };
   let system_prompt = '';
   let modelName = 'gemma4:e2b';
 
@@ -1221,9 +1377,10 @@ form.addEventListener('submit', async e => {
   statusBar.className = 'loading';
 
   accumulated = '';
-  seenDoneThinking = false;
+  seenDoneThinking = true;
   revealIndex = 0;
   finalizing = false;
+  generationStartTime = 0;
 
   try {
     if (!window.chatAPI || typeof window.chatAPI.send !== 'function') {
@@ -1659,158 +1816,11 @@ function renderProgressiveMarkdownToHTML(raw) {
   }
 }
 
-// ── Model Selector & Reasoning Controls ─────────────────────────────────────
-const modelBtn = document.getElementById('modelBtn');
-const modelMenu = document.getElementById('modelMenu');
-const modelBtnText = document.getElementById('modelBtnText');
 
+// ── Reasoning Controls ─────────────────────────────────────
 const reasoningBtn = document.getElementById('reasoningBtn');
 const reasoningMenu = document.getElementById('reasoningMenu');
 let selectedReasoning = localStorage.getItem('kyba_reasoning_effort') || 'medium';
-
-function renderActiveModelSelect() {
-  if (!modelMenu || !modelBtnText) return;
-  let customModels = [];
-  try {
-    customModels = JSON.parse(localStorage.getItem('kyba_custom_models') || '[]');
-  } catch (e) {}
-
-  let migrated = false;
-  
-  // Clear old model if it existed in localStorage
-  const originalLength = customModels.length;
-  customModels = customModels.filter(m => m.baseModel !== 'qwen3.5:0.8b');
-  if (customModels.length !== originalLength) {
-    migrated = true;
-  }
-  if (!customModels.find(m => m.baseModel === 'qwen:0.5b')) {
-    customModels.unshift({ id: 'qwen-default', name: 'Fast Qwen (qwen:0.5b)', baseModel: 'qwen:0.5b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
-    migrated = true;
-  }
-  if (!customModels.find(m => m.baseModel === 'llama3.2:1b')) {
-    customModels.unshift({ id: 'llama-32', name: 'Llama 3.2 (llama3.2:1b)', baseModel: 'llama3.2:1b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
-    migrated = true;
-  }
-  if (!customModels.find(m => m.baseModel === 'qwen2.5:1.5b')) {
-    customModels.unshift({ id: 'qwen-25', name: 'Qwen 2.5 (qwen2.5:1.5b)', baseModel: 'qwen2.5:1.5b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
-    migrated = true;
-  }
-  if (!customModels.find(m => m.baseModel === 'gemma2:2b')) {
-    customModels.unshift({ id: 'gemma-2', name: 'Gemma 2 (gemma2:2b)', baseModel: 'gemma2:2b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
-    migrated = true;
-  }
-  if (!customModels.find(m => m.baseModel === 'gpt-oss:20b')) {
-    customModels.unshift({ id: 'gpt-default', name: 'GPT OSS (gpt-oss:20b)', baseModel: 'gpt-oss:20b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
-    migrated = true;
-  }
-  if (migrated) {
-    localStorage.setItem('kyba_custom_models', JSON.stringify(customModels));
-    // Notify the main app (settings modal) that profiles were updated
-    window.dispatchEvent(new Event('storage')); 
-  }
-
-  const activeId = localStorage.getItem('kyba_active_model_id') || 'default';
-
-  let customAgents = [];
-  try {
-    customAgents = JSON.parse(localStorage.getItem('kyba_custom_agents') || '[]');
-  } catch(e) {}
-
-  modelMenu.innerHTML = '';
-
-  const modelsHeader = document.createElement('div');
-  modelsHeader.style.padding = '8px 12px 4px 12px';
-  modelsHeader.style.fontSize = '10px';
-  modelsHeader.style.color = '#64748b';
-  modelsHeader.style.textTransform = 'uppercase';
-  modelsHeader.style.letterSpacing = '0.05em';
-  modelsHeader.style.pointerEvents = 'none';
-  modelsHeader.textContent = 'Modelos';
-  modelMenu.appendChild(modelsHeader);
-
-  const options = [{ id: 'default', name: 'Base Model (gemma4:e2b)' }, ...customModels];
-
-  options.forEach(m => {
-    const opt = document.createElement('div');
-    opt.className = 'model-option';
-    if (m.id === activeId) opt.classList.add('selected');
-    opt.dataset.value = m.id;
-    opt.textContent = m.name;
-
-    if (m.id === activeId) {
-      const activeName = m.id === 'default' && window.i18n ? window.i18n.t('chat_model_title') : m.name;
-      modelBtnText.textContent = activeName;
-    }
-
-    opt.addEventListener('click', (e) => {
-      e.stopPropagation();
-      localStorage.setItem('kyba_active_model_id', m.id);
-      window.dispatchEvent(new Event('kyba_model_changed'));
-      renderActiveModelSelect();
-      modelMenu.style.display = 'none';
-    });
-
-    modelMenu.appendChild(opt);
-  });
-
-  if (customAgents && customAgents.length > 0) {
-    const agentsHeader = document.createElement('div');
-    agentsHeader.style.padding = '12px 12px 4px 12px';
-    agentsHeader.style.fontSize = '10px';
-    agentsHeader.style.color = '#64748b';
-    agentsHeader.style.textTransform = 'uppercase';
-    agentsHeader.style.letterSpacing = '0.05em';
-    agentsHeader.style.pointerEvents = 'none';
-    agentsHeader.style.borderTop = '1px solid rgba(255,255,255,0.05)';
-    agentsHeader.style.marginTop = '4px';
-    agentsHeader.textContent = 'Agentes';
-    modelMenu.appendChild(agentsHeader);
-
-    customAgents.forEach(a => {
-      const opt = document.createElement('div');
-      opt.className = 'model-option';
-      if (a.id === activeId) opt.classList.add('selected');
-      opt.dataset.value = a.id;
-      opt.textContent = a.name;
-
-      if (a.id === activeId) {
-        modelBtnText.textContent = a.name;
-      }
-
-      opt.addEventListener('click', (e) => {
-        e.stopPropagation();
-        localStorage.setItem('kyba_active_model_id', a.id);
-        window.dispatchEvent(new Event('kyba_model_changed'));
-        renderActiveModelSelect();
-        modelMenu.style.display = 'none';
-      });
-
-      modelMenu.appendChild(opt);
-    });
-  }
-}
-
-if (modelBtn && modelMenu) {
-  modelBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (modelMenu.style.display === 'block') {
-      modelMenu.style.display = 'none';
-    } else {
-      modelMenu.style.display = 'block';
-    }
-    if (reasoningMenu) reasoningMenu.style.display = 'none';
-    if (agentMenu) agentMenu.style.display = 'none';
-  });
-
-  renderActiveModelSelect();
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'kyba_custom_models') renderActiveModelSelect();
-  });
-  window.addEventListener('kyba_storage_changed', () => {
-    renderActiveModelSelect();
-  });
-}
 
 if (reasoningBtn && reasoningMenu) {
   // Initialize UI based on saved state
@@ -1846,11 +1856,11 @@ if (reasoningBtn && reasoningMenu) {
   });
 }
 
-// Global click to close both menus
+// Global click to close menu
 document.addEventListener('click', (e) => {
   if (modelMenu && !modelMenu.contains(e.target)) modelMenu.style.display = 'none';
-  if (reasoningMenu && !reasoningMenu.contains(e.target)) reasoningMenu.style.display = 'none';
   if (agentMenu && !agentMenu.contains(e.target)) agentMenu.style.display = 'none';
+  if (reasoningMenu && !reasoningMenu.contains(e.target)) reasoningMenu.style.display = 'none';
 });
 
 // ── In-Chat Model Download Manager ──────────────────────────────────────────

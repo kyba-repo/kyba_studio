@@ -125,6 +125,13 @@
       background: #fff;
     }
 
+    /* Custom Dropdowns */
+    .custom-dropdown { position: relative; }
+    .model-option, .agent-option { padding: 10px 14px; cursor: pointer; color: #cbd5e1; font-size: 13px; display: flex; align-items: center; gap: 8px; transition: background 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .model-option:hover, .agent-option:hover { background: rgba(255,255,255,0.05); }
+    .model-option.selected, .agent-option.selected { color: #fff; background: rgba(99,102,241,0.2); }
+    .agent-label-text { color: #cbd5e1; }
+
 
     /* Separator */
     .sep {
@@ -291,6 +298,12 @@
       background: rgba(0, 0, 0, .1);
       border-color: #94a3b8;
     }
+
+    .light-mode #modelMenu, .light-mode #agentMenu { background: #ffffff !important; border: 1px solid rgba(0,0,0,.2) !important; box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important; }
+    .light-mode .model-option, .light-mode .agent-option { color: #475569 !important; }
+    .light-mode .model-option:hover, .light-mode .agent-option:hover { background: rgba(0,0,0,0.05) !important; }
+    .light-mode .model-option.selected, .light-mode .agent-option.selected { background: rgba(99,102,241,0.15) !important; color: #000000 !important; }
+    .light-mode .agent-label-text { color: #475569 !important; }
 
     /* Modal Tabs CSS */
     .tabs-container {
@@ -478,10 +491,13 @@
 
   <!-- ── Top bar ── -->
   <div id="topbar">
-    <span class="logo"><span class="logo-box">K</span><span class="logo-box">Y</span><span
-        class="logo-box">B</span><span class="logo-box">A</span></span>
+    <div style="flex: 1; display: flex; align-items: center;">
+      <span class="logo"><span class="logo-box">K</span><span class="logo-box">Y</span><span
+          class="logo-box">B</span><span class="logo-box">A</span></span>
+    </div>
 
     <div style="flex:1;"></div>
+
     <select id="lang-select" style="margin-right: 8px;">
       <option value="en">EN</option>
       <option value="es" selected>ES</option>

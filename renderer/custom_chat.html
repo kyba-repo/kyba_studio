@@ -322,7 +322,12 @@
       display: flex;
       flex-direction: column;
       background: #12121f;
-      border-top: 1px solid rgba(99,102,241,.15);
+      border: 1px solid rgba(99,102,241,.15);
+      border-radius: 16px;
+      width: 50%;
+      margin: 0 auto 16px auto;
+      min-height: 120px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
       flex-shrink: 0;
       position: relative;
       z-index: 9999;
@@ -372,6 +377,8 @@
       display: flex;
       gap: 8px;
       padding: 12px 14px;
+      align-items: center;
+      flex: 1;
     }
     #prompt {
       flex: 1;
@@ -390,7 +397,7 @@
     #prompt:focus { border-color: #818cf8; }
     #prompt::placeholder { color: #475569; }
     #sendBtn {
-      align-self: flex-end;
+      align-self: center;
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: #fff;
       border: none;
@@ -409,7 +416,7 @@
     #sendBtn:disabled { opacity: .4; cursor: not-allowed; }
 
     #micBtn {
-      align-self: flex-end;
+      align-self: center;
       background: #2d2d4a;
       color: #fff;
       border: 1px solid rgba(99,102,241,.25);
@@ -526,10 +533,12 @@
     }
     
     /* Dropdown Menus */
-    .model-option, .reasoning-option { padding: 10px 14px; cursor: pointer; color: #cbd5e1; font-size: 13px; display: flex; align-items: center; gap: 8px; transition: background 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .model-option:hover, .reasoning-option:hover { background: rgba(255,255,255,0.05); }
-    .model-option.selected, .reasoning-option.selected { color: #fff; background: rgba(99,102,241,0.2); }
-    .agent-label-text { color: #cbd5e1; }
+    .reasoning-option { padding: 10px 14px; cursor: pointer; color: #cbd5e1; font-size: 13px; display: flex; align-items: center; gap: 8px; transition: background 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .reasoning-option:hover { background: rgba(255,255,255,0.05); }
+    .reasoning-option.selected { color: #fff; background: rgba(99,102,241,0.2); }
+    .model-option, .agent-option { padding: 10px 14px; cursor: pointer; color: #cbd5e1; font-size: 13px; transition: background 0.2s; display: flex; align-items: center; }
+    .model-option:hover, .agent-option:hover { background: rgba(255,255,255,0.05); }
+    .model-option.selected, .agent-option.selected { background: rgba(99,102,241,0.15); color: #fff; }
 
     /* Light Mode */
     body.light-mode { background: #f8fafc; color: #000000; }
@@ -539,19 +548,18 @@
     .light-mode .bubble.assistant th { background: rgba(0,0,0,.05); color: #000000; }
     .light-mode .bubble.assistant th, .light-mode .bubble.assistant td { border: 1px solid rgba(0,0,0,.1); }
     .light-mode .bubble.assistant code:not(pre code) { background: rgba(0,0,0,.05); color: #8b5cf6; }
-    .light-mode #bottomContainer { background: #ffffff; border-top: 1px solid rgba(0,0,0,.1); }
+    .light-mode #bottomContainer { background: #ffffff; border: 1px solid rgba(0,0,0,.15); box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
     .light-mode #prompt { background: #f8fafc; color: #000000; border: 1px solid rgba(0,0,0,.2); }
     .light-mode #prompt::placeholder { color: #64748b; }
-    .light-mode #micBtn, .light-mode #attachBtn, .light-mode #modelBtn, .light-mode #reasoningBtn, .light-mode #agentBtn, .light-mode #webSearchBtn, .light-mode #termToggleBtn { background: #f1f5f9 !important; color: #000000 !important; border: 1px solid rgba(0,0,0,.2) !important; }
-    .light-mode #micBtn:hover, .light-mode #attachBtn:hover, .light-mode #modelBtn:hover, .light-mode #reasoningBtn:hover, .light-mode #agentBtn:hover, .light-mode #webSearchBtn:hover, .light-mode #termToggleBtn:hover { background: #e2e8f0 !important; }
-    .light-mode .agent-label-text { color: #475569 !important; }
+    .light-mode #micBtn, .light-mode #attachBtn, .light-mode #reasoningBtn, .light-mode #webSearchBtn, .light-mode #termToggleBtn { background: #f1f5f9 !important; color: #000000 !important; border: 1px solid rgba(0,0,0,.2) !important; }
+    .light-mode #micBtn:hover, .light-mode #attachBtn:hover, .light-mode #reasoningBtn:hover, .light-mode #webSearchBtn:hover, .light-mode #termToggleBtn:hover { background: #e2e8f0 !important; }
     #webSearchBtn.active { color: #34d399 !important; border-color: #34d399 !important; }
     .light-mode #webSearchBtn.active { color: #059669 !important; border-color: #059669 !important; }
     .light-mode .preview-item { background: #f1f5f9; color: #000000; border: 1px solid rgba(0,0,0,.15); }
-    .light-mode #modelMenu, .light-mode #reasoningMenu, .light-mode #agentMenu { background: #ffffff !important; border: 1px solid rgba(0,0,0,.2) !important; box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important; }
-    .light-mode .reasoning-option, .light-mode .model-option, .light-mode .agent-option { color: #475569 !important; }
-    .light-mode .reasoning-option:hover, .light-mode .model-option:hover, .light-mode .agent-option:hover { background: rgba(0,0,0,0.05) !important; }
-    .light-mode .reasoning-option.selected, .light-mode .model-option.selected, .light-mode .agent-option.selected { background: rgba(99,102,241,0.15) !important; color: #000000 !important; }
+    .light-mode #reasoningMenu { background: #ffffff !important; border: 1px solid rgba(0,0,0,.2) !important; box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important; }
+    .light-mode .reasoning-option { color: #475569 !important; }
+    .light-mode .reasoning-option:hover { background: rgba(0,0,0,0.05) !important; }
+    .light-mode .reasoning-option.selected { background: rgba(99,102,241,0.15) !important; color: #000000 !important; }
 
     .light-mode #canvasHeader { background: #f1f5f9; border-bottom: 1px solid rgba(0,0,0,.1); }
     .light-mode #canvasHeader h2 { color: #000000; }
@@ -574,6 +582,16 @@
     .light-mode .bubble.assistant .copy-btn { background: rgba(0,0,0,.05); color: #475569; border: 1px solid rgba(0,0,0,.1); }
     .light-mode .bubble.assistant .copy-btn:hover { background: rgba(0,0,0,.1); color: #000000; }
     .light-mode .table-container { background: #ffffff !important; }
+
+    /* Light mode styles for chatTopBar and dropdowns */
+    .light-mode #chatTopBar { background: #f8fafc !important; border-bottom: 1px solid rgba(0,0,0,.1) !important; }
+    .light-mode #modelBtn, .light-mode #agentBtn { background: #f1f5f9 !important; color: #000000 !important; border: 1px solid rgba(0,0,0,.2) !important; }
+    .light-mode #modelBtn:hover, .light-mode #agentBtn:hover { background: #e2e8f0 !important; }
+    .light-mode #modelMenu, .light-mode #agentMenu { background: #ffffff !important; border: 1px solid rgba(0,0,0,.2) !important; box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important; }
+    .light-mode .model-option, .light-mode .agent-option { color: #475569 !important; }
+    .light-mode .model-option:hover, .light-mode .agent-option:hover { background: rgba(0,0,0,0.05) !important; }
+    .light-mode .model-option.selected, .light-mode .agent-option.selected { background: rgba(99,102,241,0.15) !important; color: #000000 !important; }
+
   </style>
 </head>
 <body>
@@ -590,9 +608,38 @@
       <div id="chatHistoryList"></div>
     </aside>
 
+    <!-- Right Content (Chat) -->
     <div id="chatContainer">
+      <!-- Barra superior aparte para los selectores de modelo y agente -->
+      <div id="chatTopBar" style="display: flex; justify-content: center; align-items: center; gap: 16px; padding: 12px; background: #0d1117; border-bottom: 1px solid rgba(255,255,255,0.06); z-index: 10000; min-height: 60px;">
+        <!-- Custom Dropdown for Model Selector -->
+        <div id="modelDropdown" class="custom-dropdown" style="position: relative;">
+          <button type="button" id="modelBtn" title="Select Model" data-i18n-title="chat_model_title" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; height: 40px; padding: 0 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-family: 'Inter', sans-serif; font-size: 13px; transition: all .2s; min-width: 160px; max-width: 220px; gap: 8px;">
+            <span id="modelBtnText" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 160px;">gemma4:e2b</span>
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"></path></svg>
+          </button>
+          <div id="modelMenu" style="display: none; position: absolute; top: 48px; left: 0; background: #1e1e30; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.8); min-width: 220px; max-height: 300px; z-index: 10001;">
+            <!-- Options injected by JS -->
+          </div>
+        </div>
+
+        <!-- Custom Dropdown for Agent Mode -->
+        <div id="agentDropdown" class="custom-dropdown" style="position: relative;">
+          <button type="button" id="agentBtn" title="Agent Mode" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; height: 40px; padding: 0 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-family: 'Inter', sans-serif; font-size: 13px; transition: all .2s; min-width: 140px; gap: 8px;">
+            <span id="agentBtnText"><span class="agent-label-text" data-i18n="chat_agent_label" style="margin-right:4px;">Agent Mode:</span><strong id="agentModeVal">OFF</strong></span>
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"></path></svg>
+          </button>
+          <div id="agentMenu" style="display: none; position: absolute; top: 48px; left: 0; background: #1e1e30; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.8); min-width: 140px; z-index: 10001;">
+            <div class="agent-option" data-value="on">ON</div>
+            <div class="agent-option selected" data-value="off">OFF</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Status bar -->
       <div id="statusBar">Model: gemma4:e2b · ready</div>
+
+
 
       <!-- Message list -->
       <div id="messages"></div>
@@ -613,7 +660,7 @@
       <div id="bottomContainer">
     <div id="previewArea"></div>
     <form id="inputArea">
-      <button type="button" id="attachBtn" title="Attach image or PDF" data-i18n-title="chat_attach" style="align-self: flex-end; background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all .2s; flex-shrink: 0;">
+      <button type="button" id="attachBtn" title="Attach image or PDF" data-i18n-title="chat_attach" style="align-self: center; background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all .2s; flex-shrink: 0;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -622,31 +669,8 @@
       <input type="file" id="fileInput" multiple accept=".pdf,.docx,.xlsx,.csv,image/*" style="display: none;">
       <textarea id="prompt" rows="1" placeholder="Type a message…" autocomplete="off" data-i18n="chat_placeholder"></textarea>
       
-      <!-- Custom Dropdown for Model Selector -->
-      <div id="modelDropdown" class="custom-dropdown" style="position: relative; align-self: flex-end; flex-shrink: 0; z-index: 10000;">
-        <button type="button" id="modelBtn" title="Select Model" data-i18n-title="chat_model_title" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; height: 40px; padding: 0 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-family: 'Inter', sans-serif; font-size: 13px; transition: all .2s; min-width: 140px; max-width: 180px; gap: 8px;">
-          <span id="modelBtnText" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 120px;">gemma4:e2b</span>
-          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"></path></svg>
-        </button>
-        <div id="modelMenu" style="display: none; position: absolute; bottom: 48px; left: 0; background: #1e1e30; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.8); min-width: 200px; max-height: 300px; z-index: 10001;">
-          <!-- Options injected by JS -->
-        </div>
-      </div>
-
-      <!-- Custom Dropdown for Agent Mode -->
-      <div id="agentDropdown" class="custom-dropdown" style="position: relative; align-self: flex-end; flex-shrink: 0; z-index: 10000;">
-        <button type="button" id="agentBtn" title="Agent Mode" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; height: 40px; padding: 0 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-family: 'Inter', sans-serif; font-size: 13px; transition: all .2s; min-width: 140px; gap: 8px;">
-          <span id="agentBtnText"><span class="agent-label-text" data-i18n="chat_agent_label" style="margin-right:4px;">Agent Mode:</span><strong id="agentModeVal">OFF</strong></span>
-          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"></path></svg>
-        </button>
-        <div id="agentMenu" style="display: none; position: absolute; bottom: 48px; left: 0; background: #1e1e30; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.8); min-width: 140px; z-index: 10001;">
-          <div class="agent-option" data-value="on" style="padding: 10px 14px; cursor: pointer; font-size: 13px; color: #e2e8f0; transition: background 0.2s;">ON</div>
-          <div class="agent-option selected" data-value="off" style="padding: 10px 14px; cursor: pointer; font-size: 13px; color: #e2e8f0; transition: background 0.2s; background: rgba(99,102,241,0.15);">OFF</div>
-        </div>
-      </div>
-
       <!-- Web Search Toggle Button -->
-      <button type="button" id="webSearchBtn" title="Web Search" data-i18n-title="chat_web_search" style="align-self: flex-end; flex-shrink: 0; background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s;">
+      <button type="button" id="webSearchBtn" title="Web Search" data-i18n-title="chat_web_search" style="align-self: center; flex-shrink: 0; background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <line x1="2" y1="12" x2="22" y2="12"></line>
@@ -655,7 +679,7 @@
       </button>
 
       <!-- Custom Dropdown for Reasoning Effort -->
-      <div id="reasoningDropdown" class="custom-dropdown" style="position: relative; align-self: flex-end; flex-shrink: 0; z-index: 10000;">
+      <div id="reasoningDropdown" class="custom-dropdown" style="position: relative; align-self: center; flex-shrink: 0; z-index: 10000;">
         <button type="button" id="reasoningBtn" title="Reasoning effort" data-i18n-title="chat_reasoning" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all .2s;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.2 1.5 1.5 2.5"/>
@@ -671,7 +695,7 @@
       </div>
 
       <!-- Terminal Toggle Button -->
-      <button type="button" id="termToggleBtn" title="Toggle Terminal" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s; flex-shrink: 0;">
+      <button type="button" id="termToggleBtn" title="Toggle Terminal" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s; flex-shrink: 0; align-self: center;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
       </button>
 
