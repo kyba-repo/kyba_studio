@@ -1,0 +1,5 @@
+ed', () => {
+  setTimeout(() => {
+    if (!agentTerminal) initAgentTerminal();
+  }, 1500);
+});

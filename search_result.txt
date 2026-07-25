@@ -1,0 +1,26 @@
+282:   t = t.replace(/<(thinking|reasoning|analysis|thought)[^>]*>[\s\S]*?<\/\1>/gi, '');
+284:   t = t.replace(/^\s*(thinking|reasoning|analysis|thoughts?)\s*[:\-]?\s*$/gim, '');
+460: const DONE_MARKER = '...done thinking.';
+461: const DONE_MARKER_RE = /\.{0,3}\s*done thinking\s*[.!?]?/i;
+489:     // If we didn't create a thinking bubble (panel opened late or UI race), create it now
+491:       currentThinking = addBubble('thinking', '● thinking…');
+492:       console.log('[chat] thinking bubble created (on stream)');
+523:     // Strip common "thinking" artifacts that sometimes get mixed into the stream
+526:       const thinkingPatterns = [/(^|\n)[\s\-\*•●\.]{0,6}\s*(pensando|thinking)[^\n]*/ig, /(^|\n)\.{2,}\s*pensando[^\n]*/ig];
+527:       for (const p of thinkingPatterns) {
+545:     // Further strip status-like prefixes (lines like '● pensando…', '...thinking', '▌')
+553:         if (/\b(pensando|thinking|generando|loading|esperando|wait|espera|done thinking|done)\b/i.test(t)) return true;
+640:         currentThinking = addBubble('thinking', window.i18n ? window.i18n.t('chat_executing') || '● executing tools…' : '● executing tools…');
+659:         currentThinking = addBubble('thinking', '● thinking…');
+713:         currentThinking = addBubble('thinking', '● thinking…');
+801:     // === FINAL CLEANUP: Remove any remaining thinking blocks and instruction prose ===
+805:       finalText = (finalText || '').replace(/<thinking[\s\S]*?<\/thinking>/gi, '').trim();
+811:       // Remove lines that start with thinking/instruction keywords
+816:         // Skip thinking/status lines
+817:         if (/\b(pensando|thinking|razonando|reasoning|meditando|generando|elaborando|escribiendo|done\s+thinking|done thinking)\b/.test(t)) return false;
+882:           // keep thinking bubble for now and exit
+890:     // Insert final assistant bubble (remove thinking bubble first so it's a direct swap)
+1048:   // remove any previous thinking bubble
+1094:   currentThinking = addBubble('thinking', '● thinking…');
+1095:   console.log('[chat] thinking bubble created');
+1194:     if (sender === 'user' || sender === 'thinking') {

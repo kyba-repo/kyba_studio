@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fadeElements = document.querySelectorAll('.fade-in-scroll');
     fadeElements.forEach(el => observer.observe(el));
-
+git add
     // 3. Descargar la última versión (.exe) automáticamente desde GitHub
     // REEMPLAZA "tu-usuario/tu-repositorio" con tus datos reales. Ej: "ger/kyba"
     const githubRepo = "kyba-repo/kyba_studio";

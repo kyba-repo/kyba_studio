@@ -1,0 +1,1 @@
+.\.venv\Scripts\pyinstaller --name kyba-server --onefile --clean --hidden-import sqlite3 --collect-all chromadb --collect-all uvicorn --collect-all fastapi --collect-all faster_whisper --collect-all ctranslate2 run_server.py
