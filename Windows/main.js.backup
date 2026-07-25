@@ -1,0 +1,1072 @@
+const { app, BrowserWindow, BrowserView, shell, ipcMain } = require('electron');
+const prompt = require('electron-prompt');
+const path = require('path');
+
+// Cargar variables de entorno para S3
+try {
+  require('dotenv').config();
+  console.log('Environment variables loaded');
+} catch (error) {
+  console.warn('dotenv not installed, skipping environment variables');
+}
+
+// AWS S3 imports - Instalar con: npm install @aws-sdk/client-s3 @aws-sdk/credential-providers
+try {
+  const { S3Client, GetObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+  const { fromEnv } = require('@aws-sdk/credential-providers');
+  module.exports.S3Client = S3Client;
+  module.exports.GetObjectCommand = GetObjectCommand;
+  module.exports.ListObjectsV2Command = ListObjectsV2Command;
+  module.exports.fromEnv = fromEnv;
+  console.log('AWS SDK loaded successfully');
+} catch (error) {
+  console.warn('AWS SDK not installed, S3 functionality will be disabled:', error.message);
+}
+
+// ==================== S3 CONFIGURATION ====================
+let s3Client = null;
+const s3Cache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+// Inicializar cliente S3
+const initializeS3Client = () => {
+  try {
+    if (!module.exports.S3Client || !module.exports.fromEnv) {
+      console.warn('AWS SDK not available, S3 functionality disabled');
+      return false;
+    }
+    
+    // Verificar si las credenciales están disponibles
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+      console.warn('AWS credentials not found in environment variables');
+      console.log('S3 functionality will be disabled. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to enable S3 features');
+      return false;
+    }
+    
+    const { S3Client, fromEnv } = module.exports;
+    s3Client = new S3Client({
+      region: process.env.AWS_REGION || 'us-east-1',
+      credentials: fromEnv(), // Lee AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY del entorno
+    });
+    console.log('Cliente S3 inicializado correctamente');
+    return true;
+  } catch (error) {
+    console.warn('Error inicializando cliente S3:', error.message);
+    console.log('La aplicación continuará sin funcionalidad S3');
+    s3Client = null;
+    return false;
+  }
+};
+
+// Función auxiliar para convertir stream a string
+const streamToString = (stream) => {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+  });
+};
+
+// ==================== S3 DATA FUNCTIONS ====================
+// Función para obtener datos de S3
+const getS3Data = async (bucket, key) => {
+  const cacheKey = `${bucket}/${key}`;
+  
+  // Verificar cache
+  if (s3Cache.has(cacheKey)) {
+    const cached = s3Cache.get(cacheKey);
+    if (Date.now() - cached.timestamp < CACHE_DURATION) {
+      console.log(`Datos S3 obtenidos del cache: ${cacheKey}`);
+      return cached.data;
+    }
+  }
+  
+  try {
+    if (!s3Client) {
+      throw new Error('S3 client not initialized. S3 functionality is disabled.');
+    }
+    
+    if (!module.exports.GetObjectCommand) {
+      throw new Error('AWS SDK not available.');
+    }
+    
+    console.log(`Obteniendo datos de S3: s3://${bucket}/${key}`);
+    
+    const { GetObjectCommand } = module.exports;
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key
+    });
+    
+    const response = await s3Client.send(command);
+    const bodyString = await streamToString(response.Body);
+    const data = JSON.parse(bodyString);
+    
+    // Guardar en cache
+
+// Listar objetos en S3
+const listS3Objects = async (bucket, prefix = '') => {
+  try {
+    if (!s3Client) {
+      throw new Error('S3 client not initialized. S3 functionality is disabled.');
+    }
+    
+    if (!module.exports.ListObjectsV2Command) {
+      throw new Error('AWS SDK not available.');
+    }
+    
+    console.log(`Listando objetos S3: s3://${bucket}/${prefix}`);
+    
+    const { ListObjectsV2Command } = module.exports;
+    const command = new ListObjectsV2Command({
+      Bucket: bucket,
+      Prefix: prefix,
+      MaxKeys: 100
+    });
+    
+    const response = await s3Client.send(command);
+    const objects = response.Contents || [];
+    
+    console.log(`Se encontraron ${objects.length} objetos en S3`);
+    return objects;
+  } catch (error) {
+    console.error(`Error listando objetos S3 ${bucket}:`, error.message);
+    throw error;
+  }
+};
+
+ipcMain.handle('show-prompt', async (event, options) => {
+  try {
+    const result = await prompt(options);
+    return result;
+  } catch (e) {
+    return null;
+  }
+});
+
+let mainWindow;
+let chatWindow = null;
+let chatView = null;
+let chatPanelVisible = false;
+
+function createWindow() {
+  console.log('Creating main window...');
+  
+  mainWindow = new BrowserWindow({
+    backgroundColor: '#eef4ff',
+    icon: path.join(__dirname),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    },
+    show: false // No mostrar hasta que esté completamente listo
+  });
+
+  console.log('Main window created, maximizing...');
+  // Maximizar inmediatamente después de crear la ventana
+  mainWindow.maximize();
+
+  console.log('Loading index.html...');
+  mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  mainWindow.once('ready-to-show', async () => {
+    console.log('Main window ready-to-show event triggered');
+    
+    // Configurar ChatGPT view
+    console.log('Setting up ChatGPT view...');
+    chatView = new BrowserView({
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true
+      }
+    });
+    mainWindow.setBrowserView(chatView);
+
+    const setChatViewBounds = () => {
+      const bounds = mainWindow.getContentBounds();
+      const width = 650; // Ancho fijo de 650px
+      if (chatPanelVisible) {
+        chatView.setBounds({ x: bounds.width - width, y: 0, width, height: bounds.height });
+        chatView.setAutoResize({ width: false, height: true });
+      } else {
+        chatView.setBounds({ x: bounds.width, y: 0, width: 0, height: bounds.height });
+      }
+    };
+    setChatViewBounds();
+    mainWindow.on('resize', setChatViewBounds);
+
+    // Cargar ChatGPT
+    try {
+      await chatView.webContents.loadURL('https://chatgpt.com');
+    } catch (e) {
+      console.error('Error loading ChatGPT:', e);
+    }
+
+    // NO mostrar la ventana aquí - esperar señal desde el renderer
+  });
+
+  
+  // Función para animar el deslizamiento del panel ChatGPT (rápida)
+  const animateChatPanel = (show) => {
+    if (!chatView) return;
+    
+    const bounds = mainWindow.getContentBounds();
+    const width = 650;
+    const duration = 150; // Animación más rápida: 150ms
+    const steps = 20; // Menos pasos para mayor velocidad
+    const stepDuration = duration / steps;
+    
+    let currentStep = 0;
+    
+    const animate = () => {
+      const progress = currentStep / steps;
+      // Usar easing función para suavizar la animación
+      const easeProgress = show ? 
+        1 - Math.pow(1 - progress, 2) : // ease-out más rápido
+        Math.pow(progress, 2); // ease-in más rápido
+      
+      const currentWidth = show ? width * easeProgress : width * (1 - easeProgress);
+      const currentX = bounds.width - currentWidth;
+      
+      chatView.setBounds({ 
+        x: Math.round(currentX), 
+        y: 0, 
+        width: Math.round(currentWidth), 
+        height: bounds.height 
+      });
+      
+      if (currentStep < steps) {
+        currentStep++;
+        setTimeout(animate, stepDuration);
+      } else {
+        // Al finalizar la animación
+        if (show) {
+          chatView.setAutoResize({ width: false, height: true });
+        }
+      }
+    };
+    
+    animate();
+  };
+
+  ipcMain.on('toggle-chat-panel', () => {
+    if (!chatView) return;
+    chatPanelVisible = !chatPanelVisible;
+    
+    // Usar animación en lugar de cambio brusco
+    animateChatPanel(chatPanelVisible);
+    
+    // Notificar al renderer sobre el cambio de estado
+    if (mainWindow) {
+      mainWindow.webContents.send('chat-panel-toggled', chatPanelVisible);
+    }
+  });
+
+  // Handler para mostrar la ventana cuando el contenido esté completamente cargado
+  ipcMain.on('content-ready', () => {
+    console.log('Content ready signal received from renderer');
+    if (mainWindow) {
+      console.log('Showing main window...');
+      mainWindow.show();
+      mainWindow.focus(); // Asegurar que tenga foco
+    } else {
+      console.error('Main window not available when content-ready received');
+    }
+  });
+  
+  // Fallback: mostrar ventana después de un timeout si no se recibe content-ready
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      console.warn('Fallback: Showing window after timeout (content-ready not received)');
+      mainWindow.show();
+    }
+  }, 6000); // Esperar 6 segundos máximo
+}
+
+// ==================== S3 IPC HANDLERS ====================
+// Handler para obtener datos de S3
+ipcMain.handle('s3-get-data', async (event, bucket, key) => {
+  try {
+    const data = await getS3Data(bucket, key);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler para listar objetos en S3
+ipcMain.handle('s3-list-objects', async (event, bucket, prefix) => {
+  try {
+    const objects = await listS3Objects(bucket, prefix);
+    return { success: true, data: objects };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler para limpiar cache S3
+ipcMain.handle('s3-clear-cache', async (event) => {
+  try {
+    const cacheSize = s3Cache.size;
+    s3Cache.clear();
+    console.log(`Cache S3 limpiado (${cacheSize} entradas eliminadas)`);
+    return { success: true, message: `Cache S3 limpiado (${cacheSize} entradas)` };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler para verificar estado de S3
+ipcMain.handle('s3-status', async (event) => {
+  try {
+    const status = {
+      clientInitialized: s3Client !== null,
+      cacheEntries: s3Cache.size,
+      region: process.env.AWS_REGION || 'us-east-1',
+      hasCredentials: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY)
+    };
+    return { success: true, status };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== LOCALSTORAGE HANDLERS ====================
+const fs = require('fs');
+const os = require('os');
+
+// Crear directorio para almacenamiento local
+const appDataPath = path.join(os.homedir(), '.shellflow');
+const localStoragePath = path.join(appDataPath, 'localStorage.json');
+
+// Asegurar que el directorio existe
+if (!fs.existsSync(appDataPath)) {
+  fs.mkdirSync(appDataPath, { recursive: true });
+}
+
+// Cargar localStorage desde archivo
+let localStorageData = {};
+try {
+  if (fs.existsSync(localStoragePath)) {
+    const data = fs.readFileSync(localStoragePath, 'utf8');
+    localStorageData = JSON.parse(data);
+  }
+} catch (error) {
+  console.warn('Error loading localStorage data:', error.message);
+  localStorageData = {};
+}
+
+// Guardar localStorage en archivo
+const saveLocalStorage = () => {
+  try {
+    fs.writeFileSync(localStoragePath, JSON.stringify(localStorageData, null, 2));
+  } catch (error) {
+    console.error('Error saving localStorage data:', error.message);
+  }
+};
+
+// Handler para getItem
+ipcMain.handle('localStorage-getItem', async (event, key) => {
+  try {
+    return localStorageData[key] || null;
+  } catch (error) {
+    console.error('Error getting localStorage item:', error.message);
+    return null;
+  }
+});
+
+// Handler para setItem
+ipcMain.handle('localStorage-setItem', async (event, key, value) => {
+  try {
+    localStorageData[key] = value;
+    saveLocalStorage();
+    return true;
+  } catch (error) {
+    console.error('Error setting localStorage item:', error.message);
+    return false;
+  }
+});
+
+// Handler para removeItem
+ipcMain.handle('localStorage-removeItem', async (event, key) => {
+  try {
+    delete localStorageData[key];
+    saveLocalStorage();
+    return true;
+  } catch (error) {
+    console.error('Error removing localStorage item:', error.message);
+    return false;
+  }
+});
+
+// Handler para clear
+ipcMain.handle('localStorage-clear', async (event) => {
+  try {
+    localStorageData = {};
+    saveLocalStorage();
+    return true;
+  } catch (error) {
+    console.error('Error clearing localStorage:', error.message);
+    return false;
+  }
+});
+
+app.on('ready', () => {
+  createWindow();
+  // Inicializar S3 al arrancar la aplicación (opcional)
+  const s3Initialized = initializeS3Client();
+  if (s3Initialized) {
+    console.log('Application started with S3 functionality enabled');
+  } else {
+    console.log('Application started without S3 functionality');
+  }
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});
+
+ipcMain.handle('registrar-pago', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede registrar pago.' };
+  // Buscar la tabla en la pestaña actual
+  const items = ws[sec] || [];
+  const tablaIdx = items.findIndex(item => item.tipo === 'table' || item.tipo === 'datatable');
+  if (tablaIdx === -1) return { error: 'No hay tabla en la pestaña actual.' };
+  // Sumar una fila inventada
+  const nuevaFila = [
+    'Pago ' + (items[tablaIdx].rows ? items[tablaIdx].rows.length + 1 : 1),
+    '20/08/2025',
+    '$1000',
+    'Aprobado'
+  ];
+  if (!items[tablaIdx].rows) items[tablaIdx].rows = [];
+  items[tablaIdx].rows.push(nuevaFila);
+  ws[sec] = items;
+  return { ws };
+});
+
+// ==================== LIFECYCLE HOOKS ====================
+ipcMain.handle('connectedCallback', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede ejecutar connectedCallback.' };
+  console.log('Componente conectado al DOM');
+  return { message: 'Componente inicializado correctamente', ws };
+});
+
+ipcMain.handle('disconnectedCallback', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede ejecutar disconnectedCallback.' };
+  console.log('Componente desconectado del DOM');
+  return { message: 'Componente limpiado correctamente', ws };
+});
+
+ipcMain.handle('renderedCallback', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede ejecutar renderedCallback.' };
+  console.log('Componente renderizado');
+  return { message: 'Renderizado completado', ws };
+});
+
+ipcMain.handle('errorCallback', async (event, ws, sec, edit, error, stack) => {
+  if (edit) return { error: 'El editor está activado, no se puede manejar errores.' };
+  console.error('Error en componente:', error, stack);
+  return { message: 'Error manejado correctamente', ws };
+});
+
+// ==================== EVENT HANDLERS ====================
+ipcMain.handle('handleClick', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede manejar clics.' };
+  console.log('Click detectado');
+  return { message: 'Click procesado correctamente', ws };
+});
+
+ipcMain.handle('handleChange', async (event, ws, sec, edit, newValue) => {
+  if (edit) return { error: 'El editor está activado, no se puede manejar cambios.' };
+  const items = ws[sec] || [];
+  const inputIdx = items.findIndex(item => item.tipo === 'inputText');
+  if (inputIdx !== -1) {
+    items[inputIdx].text = newValue || 'Nuevo valor';
+    ws[sec] = items;
+  }
+  return { message: 'Cambio procesado correctamente', ws };
+});
+
+ipcMain.handle('handleSubmit', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede enviar formulario.' };
+  const items = ws[sec] || [];
+  const formData = {};
+  items.forEach(item => {
+    if (item.tipo === 'inputText') {
+      formData[item.text] = item.text || 'Valor por defecto';
+    }
+  });
+  console.log('Formulario enviado:', formData);
+  return { message: 'Formulario enviado correctamente', data: formData, ws };
+});
+
+ipcMain.handle('handleLoad', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede cargar datos.' };
+  console.log('Cargando datos...');
+  return { message: 'Datos cargados correctamente', ws };
+});
+
+ipcMain.handle('handleSave', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede guardar.' };
+  console.log('Guardando datos...');
+  return { message: 'Datos guardados correctamente', ws };
+});
+
+ipcMain.handle('handleDelete', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede eliminar.' };
+  const items = ws[sec] || [];
+  const tableIdx = items.findIndex(item => item.tipo === 'table');
+  if (tableIdx !== -1 && items[tableIdx].rows && items[tableIdx].rows.length > 0) {
+    items[tableIdx].rows.pop(); // Eliminar última fila
+    ws[sec] = items;
+  }
+  return { message: 'Registro eliminado correctamente', ws };
+});
+
+ipcMain.handle('handleCancel', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede cancelar.' };
+  console.log('Operación cancelada');
+  return { message: 'Operación cancelada correctamente', ws };
+});
+
+ipcMain.handle('handleRefresh', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede refrescar.' };
+  console.log('Refrescando datos...');
+  return { message: 'Datos refrescados correctamente', ws };
+});
+
+ipcMain.handle('handleSelect', async (event, ws, sec, edit, selectedItem) => {
+  if (edit) return { error: 'El editor está activado, no se puede seleccionar.' };
+  console.log('Item seleccionado:', selectedItem);
+  return { message: 'Selección procesada correctamente', selected: selectedItem, ws };
+});
+
+ipcMain.handle('handleToggle', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede alternar estado.' };
+  const items = ws[sec] || [];
+  const buttonIdx = items.findIndex(item => item.tipo === 'button');
+  if (buttonIdx !== -1) {
+    items[buttonIdx].text = items[buttonIdx].text === 'ON' ? 'OFF' : 'ON';
+    ws[sec] = items;
+  }
+  return { message: 'Estado alternado correctamente', ws };
+});
+
+// ==================== DATA OPERATIONS ====================
+ipcMain.handle('handleSearch', async (event, ws, sec, edit, searchTerm) => {
+  if (edit) return { error: 'El editor está activado, no se puede buscar.' };
+  const items = ws[sec] || [];
+  const tableIdx = items.findIndex(item => item.tipo === 'table');
+  if (tableIdx !== -1 && items[tableIdx].rows) {
+    const filteredRows = items[tableIdx].rows.filter(row => 
+      row.some(cell => cell.toString().toLowerCase().includes((searchTerm || '').toLowerCase()))
+    );
+    return { message: 'Búsqueda completada', results: filteredRows, ws };
+  }
+  return { message: 'No hay tabla para buscar', results: [], ws };
+});
+
+ipcMain.handle('handleFilter', async (event, ws, sec, edit, filterCriteria) => {
+  if (edit) return { error: 'El editor está activado, no se puede filtrar.' };
+  const items = ws[sec] || [];
+  const tableIdx = items.findIndex(item => item.tipo === 'table');
+  if (tableIdx !== -1 && items[tableIdx].rows) {
+    const filteredRows = items[tableIdx].rows.filter(row => {
+      // Filtro simple por criterio
+      return row.some(cell => cell.toString().includes(filterCriteria || ''));
+    });
+    items[tableIdx].filteredRows = filteredRows;
+    ws[sec] = items;
+  }
+  return { message: 'Filtros aplicados correctamente', ws };
+});
+
+ipcMain.handle('handleSort', async (event, ws, sec, edit, column, direction) => {
+  if (edit) return { error: 'El editor está activado, no se puede ordenar.' };
+  const items = ws[sec] || [];
+  const tableIdx = items.findIndex(item => item.tipo === 'table');
+  if (tableIdx !== -1 && items[tableIdx].rows) {
+    const columnIdx = column || 0;
+    items[tableIdx].rows.sort((a, b) => {
+      if (direction === 'desc') {
+        return b[columnIdx]?.toString().localeCompare(a[columnIdx]?.toString());
+      }
+      return a[columnIdx]?.toString().localeCompare(b[columnIdx]?.toString());
+    });
+    ws[sec] = items;
+  }
+  return { message: 'Datos ordenados correctamente', ws };
+});
+
+ipcMain.handle('loadData', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede cargar datos.' };
+  const items = ws[sec] || [];
+  const tableIdx = items.findIndex(item => item.tipo === 'table');
+  if (tableIdx !== -1) {
+    // Simular carga de datos
+    items[tableIdx].rows = [
+      ['Cliente A', '2025-01-15', '$2500', 'Activo'],
+      ['Cliente B', '2025-01-20', '$1800', 'Pendiente'],
+      ['Cliente C', '2025-01-25', '$3200', 'Completado']
+    ];
+    ws[sec] = items;
+  }
+  return { message: 'Datos iniciales cargados correctamente', ws };
+});
+
+ipcMain.handle('fetchRecords', async (event, ws, sec, edit, recordType) => {
+  if (edit) return { error: 'El editor está activado, no se pueden obtener registros.' };
+  console.log('Obteniendo registros de tipo:', recordType);
+  const mockRecords = [
+    { id: '1', name: 'Registro 1', type: recordType || 'Account' },
+    { id: '2', name: 'Registro 2', type: recordType || 'Account' },
+    { id: '3', name: 'Registro 3', type: recordType || 'Account' }
+  ];
+  return { message: 'Registros obtenidos correctamente', records: mockRecords, ws };
+});
+
+ipcMain.handle('createRecord', async (event, ws, sec, edit, recordData) => {
+  if (edit) return { error: 'El editor está activado, no se pueden crear registros.' };
+  const items = ws[sec] || [];
+  const tableIdx = items.findIndex(item => item.tipo === 'table');
+  if (tableIdx !== -1) {
+    if (!items[tableIdx].rows) items[tableIdx].rows = [];
+    const newRecord = [
+      recordData?.name || 'Nuevo Registro',
+      new Date().toLocaleDateString(),
+      recordData?.amount || '$0',
+      recordData?.status || 'Nuevo'
+    ];
+    items[tableIdx].rows.push(newRecord);
+    ws[sec] = items;
+  }
+  return { message: 'Registro creado correctamente', record: recordData, ws };
+});
+
+ipcMain.handle('updateRecord', async (event, ws, sec, edit, recordId, updateData) => {
+  if (edit) return { error: 'El editor está activado, no se pueden actualizar registros.' };
+  const items = ws[sec] || [];
+  const tableIdx = items.findIndex(item => item.tipo === 'table');
+  if (tableIdx !== -1 && items[tableIdx].rows) {
+    const recordIdx = parseInt(recordId) || 0;
+    if (items[tableIdx].rows[recordIdx]) {
+      items[tableIdx].rows[recordIdx][0] = updateData?.name || items[tableIdx].rows[recordIdx][0];
+      items[tableIdx].rows[recordIdx][3] = updateData?.status || items[tableIdx].rows[recordIdx][3];
+      ws[sec] = items;
+    }
+  }
+  return { message: 'Registro actualizado correctamente', ws };
+});
+
+ipcMain.handle('deleteRecord', async (event, ws, sec, edit, recordId) => {
+  if (edit) return { error: 'El editor está activado, no se pueden eliminar registros.' };
+  const items = ws[sec] || [];
+  const tableIdx = items.findIndex(item => item.tipo === 'table');
+  if (tableIdx !== -1 && items[tableIdx].rows) {
+    const recordIdx = parseInt(recordId) || 0;
+    if (items[tableIdx].rows[recordIdx]) {
+      items[tableIdx].rows.splice(recordIdx, 1);
+      ws[sec] = items;
+    }
+  }
+  return { message: 'Registro eliminado correctamente', ws };
+});
+
+// ==================== NAVIGATION ====================
+ipcMain.handle('navigateToRecord', async (event, ws, sec, edit, recordId) => {
+  if (edit) return { error: 'El editor está activado, no se puede navegar.' };
+  console.log('Navegando al registro:', recordId);
+  return { message: `Navegación al registro ${recordId} simulada`, ws };
+});
+
+ipcMain.handle('navigateToList', async (event, ws, sec, edit, listType) => {
+  if (edit) return { error: 'El editor está activado, no se puede navegar.' };
+  console.log('Navegando a la lista:', listType);
+  return { message: `Navegación a lista ${listType} simulada`, ws };
+});
+
+ipcMain.handle('navigateToHome', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede navegar.' };
+  console.log('Navegando al home');
+  return { message: 'Navegación al home simulada', ws };
+});
+
+ipcMain.handle('navigateToApp', async (event, ws, sec, edit, appName) => {
+  if (edit) return { error: 'El editor está activado, no se puede navegar.' };
+  console.log('Navegando a la app:', appName);
+  return { message: `Navegación a app ${appName} simulada`, ws };
+});
+
+ipcMain.handle('openModal', async (event, ws, sec, edit, modalType) => {
+  if (edit) return { error: 'El editor está activado, no se puede abrir modal.' };
+  console.log('Abriendo modal:', modalType);
+  return { message: `Modal ${modalType} abierto`, modalOpen: true, ws };
+});
+
+ipcMain.handle('closeModal', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede cerrar modal.' };
+  console.log('Cerrando modal');
+  return { message: 'Modal cerrado', modalOpen: false, ws };
+});
+
+// ==================== UI ACTIONS ====================
+ipcMain.handle('showToast', async (event, ws, sec, edit, message, type) => {
+  if (edit) return { error: 'El editor está activado, no se puede mostrar toast.' };
+  console.log(`Toast ${type || 'info'}: ${message}`);
+  return { message: 'Toast mostrado', toastMessage: message, toastType: type, ws };
+});
+
+ipcMain.handle('showSpinner', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede mostrar spinner.' };
+  console.log('Mostrando spinner');
+  return { message: 'Spinner activado', loading: true, ws };
+});
+
+ipcMain.handle('hideSpinner', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede ocultar spinner.' };
+  console.log('Ocultando spinner');
+  return { message: 'Spinner desactivado', loading: false, ws };
+});
+
+ipcMain.handle('toggleSection', async (event, ws, sec, edit, sectionId) => {
+  if (edit) return { error: 'El editor está activado, no se puede alternar sección.' };
+  const items = ws[sec] || [];
+  const accordionIdx = items.findIndex(item => item.tipo === 'accordion');
+  if (accordionIdx !== -1) {
+    if (!items[accordionIdx].expandedSections) items[accordionIdx].expandedSections = [];
+    const sectionIndex = items[accordionIdx].expandedSections.indexOf(sectionId);
+    if (sectionIndex > -1) {
+      items[accordionIdx].expandedSections.splice(sectionIndex, 1);
+    } else {
+      items[accordionIdx].expandedSections.push(sectionId);
+    }
+    ws[sec] = items;
+  }
+  return { message: `Sección ${sectionId} alternada`, ws };
+});
+
+ipcMain.handle('validateForm', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede validar formulario.' };
+  const items = ws[sec] || [];
+  const validationErrors = [];
+  
+  items.forEach((item, index) => {
+    if (item.tipo === 'inputText' && (!item.text || item.text.trim() === '')) {
+      validationErrors.push(`Campo ${index + 1} es requerido`);
+    }
+  });
+  
+  const isValid = validationErrors.length === 0;
+  return { 
+    message: isValid ? 'Formulario válido' : 'Formulario con errores', 
+    valid: isValid, 
+    errors: validationErrors, 
+    ws 
+  };
+});
+
+ipcMain.handle('resetForm', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se puede limpiar formulario.' };
+  const items = ws[sec] || [];
+  
+  items.forEach(item => {
+    if (item.tipo === 'inputText') {
+      item.text = '';
+    } else if (item.tipo === 'combobox') {
+      item.selectedValue = '';
+    }
+  });
+  
+  ws[sec] = items;
+  return { message: 'Formulario limpiado', ws };
+});
+
+// ==================== UTILITY FUNCTIONS ====================
+ipcMain.handle('formatData', async (event, ws, sec, edit, data, format) => {
+  if (edit) return { error: 'El editor está activado, no se puede formatear datos.' };
+  let formattedData = data;
+  
+  switch (format) {
+    case 'currency':
+      formattedData = `$${parseFloat(data || 0).toFixed(2)}`;
+      break;
+    case 'date':
+      formattedData = new Date(data).toLocaleDateString();
+      break;
+    case 'uppercase':
+      formattedData = data?.toString().toUpperCase();
+      break;
+    case 'lowercase':
+      formattedData = data?.toString().toLowerCase();
+      break;
+    default:
+      formattedData = data;
+  }
+  
+  return { message: 'Datos formateados', formattedData, ws };
+});
+
+ipcMain.handle('parseData', async (event, ws, sec, edit, data, parseType) => {
+  if (edit) return { error: 'El editor está activado, no se pueden parsear datos.' };
+  let parsedData = data;
+  
+  try {
+    switch (parseType) {
+      case 'json':
+        parsedData = JSON.parse(data);
+        break;
+      case 'number':
+        parsedData = parseFloat(data);
+        break;
+      case 'date':
+        parsedData = new Date(data);
+        break;
+      default:
+        parsedData = data;
+    }
+  } catch (error) {
+    return { error: 'Error al parsear datos', ws };
+  }
+  
+  return { message: 'Datos parseados', parsedData, ws };
+});
+
+ipcMain.handle('calculateValues', async (event, ws, sec, edit, operation, values) => {
+  if (edit) return { error: 'El editor está activado, no se pueden realizar cálculos.' };
+  let result = 0;
+  const numbers = values?.map(v => parseFloat(v) || 0) || [];
+  
+  switch (operation) {
+    case 'sum':
+      result = numbers.reduce((a, b) => a + b, 0);
+      break;
+    case 'average':
+      result = numbers.length > 0 ? numbers.reduce((a, b) => a + b, 0) / numbers.length : 0;
+      break;
+    case 'max':
+      result = Math.max(...numbers);
+      break;
+    case 'min':
+      result = Math.min(...numbers);
+      break;
+    case 'count':
+      result = numbers.length;
+      break;
+    default:
+      result = numbers[0] || 0;
+  }
+  
+  return { message: 'Cálculo completado', result, operation, ws };
+});
+
+ipcMain.handle('transformData', async (event, ws, sec, edit, data, transformation) => {
+  if (edit) return { error: 'El editor está activado, no se pueden transformar datos.' };
+  let transformedData = data;
+  
+  switch (transformation) {
+    case 'flatten':
+      transformedData = Array.isArray(data) ? data.flat() : data;
+      break;
+    case 'unique':
+      transformedData = Array.isArray(data) ? [...new Set(data)] : data;
+      break;
+    case 'sort':
+      transformedData = Array.isArray(data) ? data.sort() : data;
+      break;
+    case 'reverse':
+      transformedData = Array.isArray(data) ? data.reverse() : data;
+      break;
+    default:
+      transformedData = data;
+  }
+  
+  return { message: 'Datos transformados', transformedData, ws };
+});
+
+ipcMain.handle('validateInput', async (event, ws, sec, edit, input, rules) => {
+  if (edit) return { error: 'El editor está activado, no se puede validar entrada.' };
+  const validationResults = [];
+  
+  if (rules?.required && (!input || input.toString().trim() === '')) {
+    validationResults.push('Campo requerido');
+  }
+  
+  if (rules?.minLength && input?.toString().length < rules.minLength) {
+    validationResults.push(`Mínimo ${rules.minLength} caracteres`);
+  }
+  
+  if (rules?.maxLength && input?.toString().length > rules.maxLength) {
+    validationResults.push(`Máximo ${rules.maxLength} caracteres`);
+  }
+  
+  if (rules?.email && !/\S+@\S+\.\S+/.test(input)) {
+    validationResults.push('Email inválido');
+  }
+  
+  const isValid = validationResults.length === 0;
+  return { message: isValid ? 'Entrada válida' : 'Entrada inválida', valid: isValid, errors: validationResults, ws };
+});
+
+ipcMain.handle('sanitizeData', async (event, ws, sec, edit, data) => {
+  if (edit) return { error: 'El editor está activado, no se pueden limpiar datos.' };
+  let sanitizedData = data;
+  
+  if (typeof data === 'string') {
+    sanitizedData = data
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
+      .replace(/[<>]/g, '') // Remove < and >
+      .trim();
+  }
+  
+  return { message: 'Datos limpiados', sanitizedData, ws };
+});
+
+// ==================== API CALLS ====================
+ipcMain.handle('callApex', async (event, ws, sec, edit, methodName, parameters) => {
+  if (edit) return { error: 'El editor está activado, no se puede llamar Apex.' };
+  console.log(`Llamando método Apex: ${methodName}`, parameters);
+  
+  // Simular respuesta de Apex
+  const mockResponse = {
+    success: true,
+    data: `Resultado del método ${methodName}`,
+    timestamp: new Date().toISOString()
+  };
+  
+  return { message: 'Método Apex ejecutado', response: mockResponse, ws };
+});
+
+ipcMain.handle('invokeAction', async (event, ws, sec, edit, actionName, context) => {
+  if (edit) return { error: 'El editor está activado, no se puede invocar acción.' };
+  console.log(`Invocando acción: ${actionName}`, context);
+  
+  return { message: `Acción ${actionName} invocada`, actionResult: 'success', ws };
+});
+
+ipcMain.handle('refreshApex', async (event, ws, sec, edit) => {
+  if (edit) return { error: 'El editor está activado, no se pueden refrescar datos de Apex.' };
+  console.log('Refrescando datos de Apex');
+  
+  return { message: 'Datos de Apex refrescados', ws };
+});
+
+ipcMain.handle('handleError', async (event, ws, sec, edit, errorInfo) => {
+  if (edit) return { error: 'El editor está activado, no se pueden manejar errores de API.' };
+  console.error('Error de API manejado:', errorInfo);
+  
+  return { message: 'Error de API procesado', errorHandled: true, ws };
+});
+
+// ==================== SPECIALIZED FUNCTIONS ====================
+ipcMain.handle('initializeChart', async (event, ws, sec, edit, chartType, data) => {
+  if (edit) return { error: 'El editor está activado, no se puede inicializar gráfico.' };
+  console.log(`Inicializando gráfico ${chartType}`, data);
+  
+  return { message: 'Gráfico inicializado', chartType, chartData: data, ws };
+});
+
+ipcMain.handle('updateChart', async (event, ws, sec, edit, newData) => {
+  if (edit) return { error: 'El editor está activado, no se puede actualizar gráfico.' };
+  console.log('Actualizando gráfico con nuevos datos', newData);
+  
+  return { message: 'Gráfico actualizado', updatedData: newData, ws };
+});
+
+ipcMain.handle('exportData', async (event, ws, sec, edit, format, data) => {
+  if (edit) return { error: 'El editor está activado, no se pueden exportar datos.' };
+  console.log(`Exportando datos en formato ${format}`, data);
+  
+  const exportedData = {
+    format,
+    data: data || 'Datos de ejemplo',
+    timestamp: new Date().toISOString()
+  };
+  
+  return { message: 'Datos exportados', exportedData, ws };
+});
+
+ipcMain.handle('importData', async (event, ws, sec, edit, source, format) => {
+  if (edit) return { error: 'El editor está activado, no se pueden importar datos.' };
+  console.log(`Importando datos desde ${source} en formato ${format}`);
+  
+  const importedData = [
+    ['Dato 1', 'Valor 1'],
+    ['Dato 2', 'Valor 2'],
+    ['Dato 3', 'Valor 3']
+  ];
+  
+  return { message: 'Datos importados', importedData, ws };
+});
+
+ipcMain.handle('generateReport', async (event, ws, sec, edit, reportType, filters) => {
+  if (edit) return { error: 'El editor está activado, no se puede generar reporte.' };
+  console.log(`Generando reporte ${reportType}`, filters);
+  
+  const report = {
+    type: reportType,
+    generatedAt: new Date().toISOString(),
+    summary: `Reporte ${reportType} generado exitosamente`,
+    data: ['Fila 1', 'Fila 2', 'Fila 3']
+  };
+  
+  return { message: 'Reporte generado', report, ws };
+});
+
+ipcMain.handle('scheduleJob', async (event, ws, sec, edit, jobName, schedule) => {
+  if (edit) return { error: 'El editor está activado, no se puede programar tarea.' };
+  console.log(`Programando tarea ${jobName}`, schedule);
+  
+  return { message: `Tarea ${jobName} programada`, jobId: Date.now(), schedule, ws };
+});
+
+// ==================== SECURITY & PERMISSIONS ====================
+ipcMain.handle('checkPermissions', async (event, ws, sec, edit, permission) => {
+  if (edit) return { error: 'El editor está activado, no se pueden verificar permisos.' };
+  console.log(`Verificando permiso: ${permission}`);
+  
+  // Simular verificación de permisos
+  const hasPermission = Math.random() > 0.3; // 70% de probabilidad de tener permiso
+  
+  return { message: 'Permisos verificados', permission, hasPermission, ws };
+});
+
+ipcMain.handle('validateAccess', async (event, ws, sec, edit, resource) => {
+  if (edit) return { error: 'El editor está activado, no se puede validar acceso.' };
+  console.log(`Validando acceso a: ${resource}`);
+  
+  const hasAccess = Math.random() > 0.2; // 80% de probabilidad de tener acceso
+  
+  return { message: 'Acceso validado', resource, hasAccess, ws };
+});
+
+ipcMain.handle('logActivity', async (event, ws, sec, edit, activity, details) => {
+  if (edit) return { error: 'El editor está activado, no se puede registrar actividad.' };
+  console.log(`Registrando actividad: ${activity}`, details);
+  
+  const logEntry = {
+    activity,
+    details,
+    timestamp: new Date().toISOString(),
+    user: 'Usuario actual'
+  };
+  
+  return { message: 'Actividad registrada', logEntry, ws };
+});

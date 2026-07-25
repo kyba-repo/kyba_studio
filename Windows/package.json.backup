@@ -1,0 +1,46 @@
+{
+  "name": "electron-shellflow",
+  "version": "1.0.0",
+  "description": "Shellflow es un entorno de desarrollo integrado asistido por ChatGPT que facilita la creacion de plantillas de Salesforce",
+  "main": "main.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build:win:portable": "electron-builder --win portable",
+    "build:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "@electron/get": "^4.0.2",
+    "electron": "^30.5.1",
+    "electron-builder": "^24.13.3",
+    "electron-packager": "^17.1.2"
+  },
+  "build": {
+    "appId": "com.bbva.electron.shellflow",
+    "productName": "Shellflow",
+    "files": [
+      "renderer/**/*",
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "artifactName": "${productName}-${version}-portable.exe",
+      "icon": "./build/icon.ico"
+    },
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    }
+  },
+  "dependencies": {
+    "electron-prompt": "^1.7.0",
+    "source-map": "^0.7.6"
+  }
+}

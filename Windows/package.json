@@ -1,0 +1,84 @@
+{
+  "name": "kyba-studio",
+  "version": "1.0.0",
+  "description": "Kyba is an open-source software that allows you to interact with Generative AI models.",
+  "main": "main.js",
+  "author": "KYBA Devs",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build:md": "npx -y esbuild renderer/markdown_bundle_src.js --bundle --outfile=renderer/markdown_bundle.js --format=iife --global-name=MarkdownBundle --platform=browser",
+    "build:win:portable": "electron-builder --win portable",
+    "build:win:installer": "electron-builder --win nsis",
+    "build:win": "electron-builder --win",
+    "publish": "electron-builder --win nsis --publish always"
+  },
+  "devDependencies": {
+    "@electron/get": "^4.0.2",
+    "electron": "^42.4.1",
+    "electron-builder": "^26.15.3",
+    "electron-packager": "^17.1.2"
+  },
+  "build": {
+    "appId": "com.electron.kyba",
+    "productName": "Kyba Studio",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "kyba-repo",
+        "repo": "kyba_studio"
+      }
+    ],
+    "files": [
+      "renderer/**/*",
+      "main.js",
+      "preload.js",
+      "ai-preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/kyba-server.exe",
+        "to": "kyba-server.exe"
+      },
+      {
+        "from": "models",
+        "to": "models"
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    },
+    "nsis": {
+      "artifactName": "${productName}-${version}-setup.exe",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "license": "build/license.txt",
+      "include": "build/installer.nsh"
+    },
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    }
+  },
+  "dependencies": {
+    "electron-prompt": "^1.7.0",
+    "electron-updater": "^6.8.9",
+    "highlight.js": "^11.11.1",
+    "katex": "^0.17.0",
+    "marked": "^18.0.5",
+    "marked-katex-extension": "^5.1.10",
+    "mermaid": "^11.16.0",
+    "monaco-editor": "^0.55.1",
+    "node-pty": "^1.0.0",
+    "source-map": "^0.7.6"
+  }
+}

@@ -1,0 +1,488 @@
+/* Variables CSS y Sistema de Diseño */
+:root {
+    --bg-color: #0f172a;          /* Fondo oscuro elegante */
+    --text-main: #f8fafc;         /* Texto principal claro */
+    --text-muted: #94a3b8;        /* Texto secundario atenuado */
+    --primary: #6366f1;           /* Color primario vibrante (Indigo) */
+    --primary-hover: #4f46e5;
+    --secondary-bg: rgba(30, 41, 59, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --accent: #ec4899;            /* Acento rosado para degradados */
+}
+
+/* Reseteo básico */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    line-height: 1.6;
+    overflow-x: hidden;
+    /* Efecto de fondo sutil (luces) */
+    background-image: 
+        radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 85% 30%, rgba(236, 72, 153, 0.15) 0%, transparent 50%);
+    background-attachment: fixed;
+}
+
+/* ================= Navbar ================= */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 5%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    position: fixed;
+    width: 100%;
+    top: 0;
+    z-index: 1000;
+    border-bottom: 1px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.navbar.scrolled {
+    padding: 1rem 5%;
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.logo-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.kyba-logo {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    transition: transform 0.3s ease;
+}
+
+.kyba-logo:hover {
+    transform: scale(1.05);
+}
+
+.kyba-logo .logo-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--text-main);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-main);
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 1;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+.kyba-logo:hover .logo-box {
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 2.5rem;
+}
+
+.nav-links a {
+    color: var(--text-main);
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+    color: var(--primary);
+}
+
+/* ================= Botones ================= */
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: white;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+}
+
+.btn-secondary {
+    background-color: var(--secondary-bg);
+    color: var(--text-main);
+    border: 1px solid var(--glass-border);
+}
+
+.btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--text-main);
+    border: 1px solid var(--glass-border);
+}
+
+.btn-outline:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* ================= Sección Hero ================= */
+.hero {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7rem 5% 4rem;
+    gap: 4rem;
+}
+
+.hero-content {
+    flex: 1;
+    max-width: 650px;
+}
+
+.hero h1 {
+    font-size: 4rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #ffffff, #94a3b8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -1px;
+}
+
+.hero p {
+    font-size: 1.125rem;
+    color: var(--text-muted);
+    margin-bottom: 2.5rem;
+    max-width: 90%;
+}
+
+.cta-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.cta-group {
+    display: flex;
+    gap: 1rem;
+}
+
+.license-text {
+    font-size: 0.85rem !important;
+    color: var(--text-muted) !important;
+    margin: 0 !important;
+    opacity: 0.8;
+}
+
+/* ================= Tarjetas Glassmorphism ================= */
+.glass-card {
+    background: var(--secondary-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.hero-graphic {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    perspective: 1000px;
+}
+
+.main-card {
+    width: 100%;
+    max-width: 1020px;
+    padding: 1.5rem;
+    transform: rotateY(-10deg) rotateX(5deg);
+    transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.main-card:hover {
+    transform: rotateY(0deg) rotateX(0deg) scale(1.02);
+}
+
+.mockup-header {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+.red { background: #ff5f56; }
+.yellow { background: #ffbd2e; }
+.green { background: #27c93f; }
+
+.mockup-body h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.mockup-body p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    animation: load 2.5s ease-out forwards;
+}
+
+/* ================= Sección Cómo Funciona ================= */
+.how-it-works {
+    padding: 6rem 5% 2rem;
+}
+
+.step-container {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.step-row {
+    display: flex;
+    align-items: center;
+    gap: 4rem;
+    margin-bottom: 4rem;
+}
+
+.step-image {
+    flex: 1;
+}
+
+.step-image .glass-card:hover {
+    transform: perspective(1000px) rotateY(0deg) rotateX(0deg) scale(1.02) !important;
+}
+
+.step-text {
+    flex: 1;
+}
+
+.step-text h3 {
+    font-size: 2.2rem;
+    color: var(--primary);
+    margin-bottom: 1rem;
+    font-weight: 800;
+}
+
+.step-text p {
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    text-align: justify;
+}
+
+.fade-in-scroll {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fade-in-scroll.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@media (max-width: 900px) {
+    .step-row {
+        flex-direction: column;
+        text-align: center;
+        gap: 2.5rem;
+    }
+}
+
+/* ================= Sección Características ================= */
+.features {
+    padding: 8rem 5%;
+}
+
+.section-title {
+    text-align: center;
+    margin-bottom: 5rem;
+}
+
+.section-title h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    font-weight: 800;
+}
+
+.section-title p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2.5rem;
+}
+
+.feature-card {
+    padding: 2.5rem;
+    transition: all 0.4s ease;
+    opacity: 0;
+    transform: translateY(30px);
+}
+
+.feature-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.feature-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 40px rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.icon {
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.feature-card h3 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.feature-card p {
+    color: var(--text-muted);
+    line-height: 1.6;
+    text-align: justify;
+}
+
+.requirements-list {
+    text-align: left;
+    color: var(--text-muted);
+    line-height: 1.6;
+    padding-left: 1.2rem;
+    margin-top: 1rem;
+}
+
+.requirements-list li {
+    margin-bottom: 0.75rem;
+}
+
+/* ================= Footer ================= */
+footer {
+    text-align: center;
+    padding: 3rem 5%;
+    border-top: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* ================= Animaciones ================= */
+@keyframes load {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 100%; }
+}
+
+.fade-in {
+    opacity: 0;
+    animation: fadeIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.delay-1 { animation-delay: 0.2s; }
+.delay-2 { animation-delay: 0.4s; }
+.delay-3 { animation-delay: 0.6s; }
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ================= Responsive ================= */
+@media (max-width: 900px) {
+    .hero {
+        flex-direction: column;
+        text-align: center;
+        padding-top: 8rem;
+    }
+    
+    .hero-content {
+        max-width: 100%;
+    }
+
+    .hero p {
+        margin: 0 auto 2.5rem auto;
+    }
+    
+    .hero h1 { font-size: 3rem; }
+    
+    .cta-group {
+        justify-content: center;
+    }
+    
+    .nav-links {
+        display: none; /* Idealmente aquí iría un menú hamburguesa */
+    }
+}
