@@ -2,12 +2,17 @@
   "name": "kyba-studio",
   "version": "1.0.0",
   "description": "Kyba is an open-source software that allows you to interact with Generative AI models.",
-  "main": "main.js",
+  "main": "outdir/main.js",
   "author": "KYBA Devs",
   "license": "MIT",
+  "type": "module",
   "scripts": {
     "start": "electron .",
-    "dev": "electron .",
+    "dev": "tsc --project tsconfig.json && electron .",
+    "dev:w": "npm run cmd",
+    "cmd": "start cmd /c \"npm run cmd:tsw\" && start cmd /c \"npm run cmd:watch\"",
+    "cmd:tsw": "start cmd /c \"npx nodemon --watch ./src --ext ts,html,css --exec \"tsc\"\"",
+    "cmd:watch": "nodemon --exec electron . && exit 0",
     "build:md": "npx -y esbuild renderer/markdown_bundle_src.js --bundle --outfile=renderer/markdown_bundle.js --format=iife --global-name=MarkdownBundle --platform=browser",
     "build:win:portable": "electron-builder --win portable",
     "build:win:installer": "electron-builder --win nsis",
@@ -18,7 +23,11 @@
     "@electron/get": "^4.0.2",
     "electron": "^42.4.1",
     "electron-builder": "^26.15.3",
-    "electron-packager": "^17.1.2"
+    "electron-packager": "^17.1.2",
+    "@types/node": "^26.1.1",
+    "nodemon": "^3.1.14",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
   },
   "build": {
     "appId": "com.electron.kyba",
