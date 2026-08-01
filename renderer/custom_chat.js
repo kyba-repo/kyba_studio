@@ -12,6 +12,46 @@ const fileInput = document.getElementById('fileInput');
 const previewArea = document.getElementById('previewArea');
 let pendingAttachments = [];
 
+// ── Welcome Screen (Jan.ai style) ─────────────────────────────────────────────
+const welcomeScreen = document.getElementById('welcomeScreen');
+const chatContainer = document.getElementById('chatContainer');
+
+function showWelcomeScreen() {
+  if (welcomeScreen) welcomeScreen.classList.remove('hidden');
+  if (chatContainer) chatContainer.classList.add('welcome-state');
+}
+
+function hideWelcomeScreen() {
+  if (!welcomeScreen || welcomeScreen.classList.contains('hidden')) return;
+  
+  const bottomContainer = document.getElementById('bottomContainer');
+  
+  if (bottomContainer && chatContainer && chatContainer.classList.contains('welcome-state')) {
+    const startRect = bottomContainer.getBoundingClientRect();
+    chatContainer.classList.remove('welcome-state');
+    welcomeScreen.classList.add('hidden');
+    const endRect = bottomContainer.getBoundingClientRect();
+    const deltaY = startRect.top - endRect.top;
+    
+    bottomContainer.style.transition = 'none';
+    bottomContainer.style.transform = `translateY(${deltaY}px)`;
+    bottomContainer.offsetHeight; // force reflow
+    
+    bottomContainer.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+    bottomContainer.style.transform = 'translateY(0)';
+    bottomContainer.addEventListener('transitionend', () => {
+      bottomContainer.style.transition = '';
+      bottomContainer.style.transform = '';
+    }, { once: true });
+  } else {
+    if (welcomeScreen) welcomeScreen.classList.add('hidden');
+    if (chatContainer) chatContainer.classList.remove('welcome-state');
+  }
+}
+
+// Show welcome screen on initial load
+showWelcomeScreen();
+
 if (attachBtn && fileInput) {
   attachBtn.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', async (e) => {
@@ -166,14 +206,23 @@ function loadChat(id) {
       badge.style.fontSize = '0.70rem';
       badge.style.color = 'var(--text-secondary, #888)';
       badge.style.marginTop = '4px';
-      badge.style.textAlign = 'left';
-      badge.style.opacity = '0.7';
-      badge.style.fontStyle = 'italic';
+      badge.style.display = 'flex';
+      badge.style.alignItems = 'center';
+      badge.style.flexWrap = 'wrap';
+      badge.style.gap = '2px';
+      
+      // Ensure dataset index is updated for historical actions
+      const actions = badge.querySelectorAll('.msg-action-btn');
+      actions.forEach(btn => {
+        btn.dataset.index = chatHistory.indexOf(msg);
+      });
+      
       bubble.parentElement.appendChild(badge);
     }
   });
   
   renderSidebar();
+  hideWelcomeScreen();
   updateStatusBar();
 }
 
@@ -447,7 +496,7 @@ function renderActiveModelSelect() {
   modelsHeader.style.textTransform = 'uppercase';
   modelsHeader.style.letterSpacing = '0.05em';
   modelsHeader.style.pointerEvents = 'none';
-  modelsHeader.textContent = 'Modelos';
+  modelsHeader.textContent = window.i18n ? (window.i18n.t('tab_models') || 'Modelos') : 'Modelos';
   modelMenu.appendChild(modelsHeader);
 
   const options = [{ id: 'default', name: 'Base Model (gemma4:e2b)' }, ...customModels];
@@ -485,7 +534,7 @@ function renderActiveModelSelect() {
     agentsHeader.style.pointerEvents = 'none';
     agentsHeader.style.borderTop = '1px solid rgba(255,255,255,0.05)';
     agentsHeader.style.marginTop = '4px';
-    agentsHeader.textContent = 'Agentes';
+    agentsHeader.textContent = window.i18n ? (window.i18n.t('tab_agents') || 'Agentes') : 'Agentes';
     modelMenu.appendChild(agentsHeader);
 
     customAgents.forEach(a => {
@@ -785,6 +834,69 @@ const streamHandler = (_, chunk) => {
     console.error('[chat] streamHandler error', e && e.message);
   }
 };
+
+// Delegated event listener for message action buttons
+messages.addEventListener('click', (e) => {
+  const btn = e.target.closest('.msg-action-btn');
+  if (!btn) return;
+  
+  const action = btn.dataset.action;
+  const msgIndex = parseInt(btn.dataset.index, 10);
+  if (isNaN(msgIndex) || msgIndex < 0 || msgIndex >= chatHistory.length) return;
+  
+  const msg = chatHistory[msgIndex];
+  if (msg.role !== 'assistant') return;
+  
+  const iconSize = '14';
+  const iconStroke = 'currentColor';
+  
+  if (action === 'copy') {
+    navigator.clipboard.writeText(msg.content || '');
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = `<svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    setTimeout(() => { btn.innerHTML = originalHtml; }, 1500);
+  } 
+  else if (action === 'delete') {
+    const badgeDiv = btn.closest('.model-badge');
+    const bubbleParent = badgeDiv ? badgeDiv.previousElementSibling : null;
+    if (!bubbleParent || !bubbleParent.classList.contains('bubble')) return;
+    
+    chatHistory.splice(msgIndex, 1);
+    bubbleParent.remove();
+    badgeDiv.remove();
+    saveCurrentChat();
+    // Update indices for remaining buttons
+    document.querySelectorAll('.msg-action-btn').forEach(b => {
+      const idx = parseInt(b.dataset.index, 10);
+      if (idx > msgIndex) b.dataset.index = idx - 1;
+    });
+  }
+  else if (action === 'regenerate') {
+    // Find the closest user message before this one
+    let targetUserMsg = null;
+    let targetUserIdx = -1;
+    for (let i = msgIndex - 1; i >= 0; i--) {
+      if (chatHistory[i].role === 'user') {
+        targetUserMsg = chatHistory[i];
+        targetUserIdx = i;
+        break;
+      }
+    }
+    
+    if (targetUserMsg) {
+      // Remove the user message and everything after it
+      chatHistory.splice(targetUserIdx);
+      saveCurrentChat();
+      
+      // Re-render the chat to safely clear the UI
+      loadChat(currentChatId);
+      
+      // Set the prompt and submit
+      promptEl.value = targetUserMsg.content || '';
+      form.dispatchEvent(new Event('submit'));
+    }
+  }
+});
 
 const doneHandler = (_, payload) => {
   try {
@@ -1199,22 +1311,47 @@ const doneHandler = (_, payload) => {
             badge.innerHTML = `<span data-i18n="chat_generated_by">${window.i18n ? window.i18n.t('chat_generated_by') || '⚡ Generado por' : '⚡ Generado por'}</span> ${displayName}`;
           }
 
-          if (generationStartTime > 0 && finalText) {
-             const durSec = (Date.now() - generationStartTime) / 1000;
-             if (durSec > 0.5) {
-                const tokens = Math.ceil(finalText.length / 4);
-                const tps = (tokens / durSec).toFixed(1);
-                badge.innerHTML += `<span style="float:right;" title="Tokens por segundo (estimado)">🚀 ${tps} t/s</span>`;
-             }
+          if (activeId && activeId !== 'default') {
+            let reportBtnStr = ` | <a class="report-issue-btn" title="Report inappropriate AI content" style="color: #ef4444; text-decoration: none; margin-left: 5px; opacity: 0.8; font-weight: bold; cursor: pointer;"><span data-i18n="chat_report_issue">${window.i18n ? window.i18n.t('chat_report_issue') || 'Report issue' : 'Report issue'}</span> ⚠️</a>`;
+          badge.innerHTML += reportBtnStr;
           }
+
+          // Action icons container (copy, delete, regenerate)
+          const iconSize = '14';
+          const iconStroke = 'currentColor';
+          const btnStyle = 'background:none; border:none; cursor:pointer; padding:3px; border-radius:4px; display:inline-flex; align-items:center; justify-content:center; opacity:0.6; transition:opacity 0.2s, background 0.2s; color:var(--text-secondary, #888);';
+          
+          const actionsHtml = `
+            <span style="margin-left: 8px; display: inline-flex; gap: 2px; vertical-align: middle;">
+              <button class="msg-action-btn" data-action="copy" data-index="${chatHistory.length - 1}" style="${btnStyle}" title="${window.i18n ? window.i18n.t('msg_action_copy') || 'Copy message' : 'Copy message'}" data-i18n-title="msg_action_copy" onmouseenter="this.style.opacity='1'; this.style.background='var(--btn-hover-bg, rgba(255,255,255,0.08))';" onmouseleave="this.style.opacity='0.6'; this.style.background='none';">
+                <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${iconStroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+              <button class="msg-action-btn" data-action="delete" data-index="${chatHistory.length - 1}" style="${btnStyle}" title="${window.i18n ? window.i18n.t('msg_action_delete') || 'Delete message' : 'Delete message'}" data-i18n-title="msg_action_delete" onmouseenter="this.style.opacity='1'; this.style.background='var(--btn-hover-bg, rgba(255,255,255,0.08))';" onmouseleave="this.style.opacity='0.6'; this.style.background='none';">
+                <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${iconStroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              </button>
+              <button class="msg-action-btn" data-action="regenerate" data-index="${chatHistory.length - 1}" style="${btnStyle}" title="${window.i18n ? window.i18n.t('msg_action_regen') || 'Regenerate response' : 'Regenerate response'}" data-i18n-title="msg_action_regen" onmouseenter="this.style.opacity='1'; this.style.background='var(--btn-hover-bg, rgba(255,255,255,0.08))';" onmouseleave="this.style.opacity='0.6'; this.style.background='none';">
+                <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${iconStroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+              </button>
+            </span>
+          `;
+          badge.innerHTML += actionsHtml;
 
           badge.style.fontSize = '0.70rem';
           badge.style.color = 'var(--text-secondary, #888)';
           badge.style.marginTop = '4px';
+          badge.style.display = 'flex';
+          badge.style.alignItems = 'center';
+          badge.style.flexWrap = 'wrap';
+          badge.style.gap = '2px';
           badge.style.textAlign = 'left';
           badge.style.opacity = '0.7';
           badge.style.fontStyle = 'italic';
           currentAssistant.parentElement.appendChild(badge);
+
+          if (generationStartTime > 0 && finalText) {
+             const durSec = (Date.now() - generationStartTime) / 1000;
+             // t/s counter removed as per user request
+          }
 
           // Save the badge HTML to chat history so it persists on reload and supports i18n
           if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'assistant') {
@@ -1310,6 +1447,7 @@ form.addEventListener('submit', async e => {
 
   let uiText = text;
   addBubble('user', text, pendingAttachments);
+  hideWelcomeScreen();
   promptEl.value = '';
   promptEl.style.height = 'auto';
 
@@ -1345,6 +1483,7 @@ form.addEventListener('submit', async e => {
   if (profile) {
     options.temperature = typeof profile.temperature === 'number' ? profile.temperature : 0.2;
     options.top_p = typeof profile.top_p === 'number' ? profile.top_p : 0.9;
+    if (typeof profile.num_ctx === 'number') options.num_ctx = profile.num_ctx;
     system_prompt = profile.systemPrompt || '';
     modelName = profile.baseModel || 'gemma4:e2b';
   } else {
@@ -1352,6 +1491,7 @@ form.addEventListener('submit', async e => {
       const s = JSON.parse(localStorage.getItem('kyba_model_settings') || '{}');
       if (typeof s.temperature === 'number') options.temperature = s.temperature;
       if (typeof s.top_p === 'number') options.top_p = s.top_p;
+      if (typeof s.num_ctx === 'number') options.num_ctx = s.num_ctx;
       if (s.systemPrompt) system_prompt = s.systemPrompt;
       if (s.baseModel) modelName = s.baseModel;
     } catch (e) { }
@@ -1499,7 +1639,7 @@ function addBubble(sender, text, attachments = [], orbState = 'working') {
       el.appendChild(container);
       
       if (typeof window.ThinkingOrbCanvas !== 'undefined') {
-        el._orbInstance = new window.ThinkingOrbCanvas(canvas, { state: orbState, size: 20 });
+        el._orbInstance = new window.ThinkingOrbCanvas(canvas, { state: orbState, size: 45 });
         const originalRemove = el.remove;
         el.remove = function() {
           if (this._orbInstance) this._orbInstance.destroy();
@@ -1715,6 +1855,10 @@ window.previewHtmlCode = function (btn) {
     // Inject HTML into iframe using srcdoc
     iframe.srcdoc = htmlCode;
     overlay.classList.add('visible');
+    
+    // Hide chat bar while canvas is open
+    const bottomContainer = document.getElementById('bottomContainer');
+    if (bottomContainer) bottomContainer.style.display = 'none';
   } catch (e) {
     console.error('[Canvas Preview Error]', e);
   }
@@ -1724,6 +1868,11 @@ window.closeHtmlPreview = function () {
   const overlay = document.getElementById('canvasModalOverlay');
   const iframe = document.getElementById('canvasFrame');
   overlay.classList.remove('visible');
+  
+  // Restore chat bar
+  const bottomContainer = document.getElementById('bottomContainer');
+  if (bottomContainer) bottomContainer.style.display = '';
+
   // Clear the iframe to stop any scripts, audio, etc.
   setTimeout(() => {
     iframe.srcdoc = '';
@@ -2114,4 +2263,95 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 1500);
 
 });
+
+// Report Modal Logic
+window.openReportModal = function() {
+  const overlay = document.getElementById('reportModalOverlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    // Small delay to allow display: flex to apply before opacity transition
+    setTimeout(() => {
+      overlay.style.opacity = '1';
+    }, 10);
+  }
+};
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.report-issue-btn')) {
+    if (window.openReportModal) window.openReportModal();
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const overlay = document.getElementById('reportModalOverlay');
+  const closeBtn = document.getElementById('reportCloseBtn');
+  const reportForm = document.getElementById('reportForm');
+  const attachmentInput = document.getElementById('reportAttachment');
+  const attachmentName = document.getElementById('reportAttachmentName');
+  
+  if (closeBtn && overlay) {
+    closeBtn.addEventListener('click', () => {
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        overlay.style.display = 'none';
+      }, 300);
+    });
+  }
+  
+  if (attachmentInput && attachmentName) {
+    attachmentInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        attachmentName.textContent = e.target.files[0].name;
+      } else {
+        attachmentName.textContent = window.i18n ? window.i18n.t('report_attach_none') || 'No file chosen' : 'No file chosen';
+      }
+    });
+  }
+  
+  if (reportForm) {
+    reportForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = document.getElementById('reportTitle').value;
+      const email = document.getElementById('reportEmail').value;
+      const desc = document.getElementById('reportDesc').value;
+      const payload = { _subject: title, email: email, message: desc, _captcha: false };
+      
+      const submitPayload = (payload) => {
+         // Get port from global window object or fallback
+         const port = window.RAG_PORT || 8000;
+         fetch("http://127.0.0.1:" + port + "/report", {
+             method: "POST",
+             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+             body: JSON.stringify(payload)
+         }).catch(err => console.error("Report sending failed", err));
+      };
+      
+      if (attachmentInput && attachmentInput.files && attachmentInput.files.length > 0) {
+          const file = attachmentInput.files[0];
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+              payload.attachment_name = file.name;
+              payload.attachment_b64 = ev.target.result.split(',')[1];
+              submitPayload(payload);
+          };
+          reader.readAsDataURL(file);
+      } else {
+          submitPayload(payload);
+      }
+      
+      alert("Thank you for reporting the issue. Our team will review it shortly.");
+      
+      // Close modal
+      if (overlay) {
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+          overlay.style.display = 'none';
+          reportForm.reset();
+          if (attachmentName) attachmentName.textContent = window.i18n ? window.i18n.t('report_attach_none') || 'No file chosen' : 'No file chosen';
+        }, 300);
+      }
+    });
+  }
+});
+
 

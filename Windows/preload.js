@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   notifyModelChanged: () => ipcRenderer.send('notify-model-changed'),
   notifyClearChat: () => ipcRenderer.send('notify-clear-chat'),
   checkModel: (modelName) => ipcRenderer.invoke('check-model', modelName),
+  setNetworkExposed: (exposed) => ipcRenderer.send('set-network-exposed', exposed),
+  getNetworkExposed: () => ipcRenderer.invoke('get-network-exposed'),
   pullModel: (modelName) => ipcRenderer.invoke('pull-model', modelName),
   onPullProgress: (callback) => {
     ipcRenderer.removeAllListeners('pull-progress');

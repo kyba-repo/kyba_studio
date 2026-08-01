@@ -1356,40 +1356,6 @@ function renderActiveModelSelect() {
     customModels = JSON.parse(localStorage.getItem('kyba_custom_models') || '[]');
   } catch (e) {}
 
-  let migrated = false;
-  
-  // Clear old model if it existed in localStorage
-  const originalLength = customModels.length;
-  customModels = customModels.filter(m => m.baseModel !== 'qwen3.5:0.8b');
-  if (customModels.length !== originalLength) {
-    migrated = true;
-  }
-  if (!customModels.find(m => m.baseModel === 'qwen:0.5b')) {
-    customModels.unshift({ id: 'qwen-default', name: 'Fast Qwen (qwen:0.5b)', baseModel: 'qwen:0.5b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
-    migrated = true;
-  }
-  if (!customModels.find(m => m.baseModel === 'llama3.2:1b')) {
-    customModels.unshift({ id: 'llama-32', name: 'Llama 3.2 (llama3.2:1b)', baseModel: 'llama3.2:1b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
-    migrated = true;
-  }
-  if (!customModels.find(m => m.baseModel === 'qwen2.5:1.5b')) {
-    customModels.unshift({ id: 'qwen-25', name: 'Qwen 2.5 (qwen2.5:1.5b)', baseModel: 'qwen2.5:1.5b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
-    migrated = true;
-  }
-  if (!customModels.find(m => m.baseModel === 'gemma2:2b')) {
-    customModels.unshift({ id: 'gemma-2', name: 'Gemma 2 (gemma2:2b)', baseModel: 'gemma2:2b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
-    migrated = true;
-  }
-  if (!customModels.find(m => m.baseModel === 'gpt-oss:20b')) {
-    customModels.unshift({ id: 'gpt-default', name: 'GPT OSS (gpt-oss:20b)', baseModel: 'gpt-oss:20b', temperature: 0.2, top_p: 0.9, systemPrompt: '' });
-    migrated = true;
-  }
-  if (migrated) {
-    localStorage.setItem('kyba_custom_models', JSON.stringify(customModels));
-    // Notify the main app (settings modal) that profiles were updated
-    window.dispatchEvent(new Event('storage')); 
-  }
-
   const activeId = localStorage.getItem('kyba_active_model_id') || 'default';
 
   modelMenu.innerHTML = '';

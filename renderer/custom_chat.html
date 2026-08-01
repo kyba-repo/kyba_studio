@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kyba Studio – Local Chat</title>
+  <title>Kyba Studio â€“ Local Chat</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link id="hljs-theme" rel="stylesheet" href="../node_modules/highlight.js/styles/github-dark.min.css" />
@@ -11,6 +11,8 @@
   
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    ::-webkit-scrollbar { display: none; }
+    * { -ms-overflow-style: none; scrollbar-width: none; }
 
     body {
       font-family: 'Inter', system-ui, sans-serif;
@@ -23,7 +25,7 @@
     }
 
 
-    /* ── Layout ───────────────────────────────── */
+    /* â”€â”€ Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     #mainContainer {
       display: flex;
       flex: 1;
@@ -117,7 +119,7 @@
       position: relative;
     }
 
-    /* ── Status bar ──────────────────────────── */
+    /* â”€â”€ Status bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     #statusBar {
       display: none !important;
       font-size: 11px;
@@ -131,7 +133,7 @@
     #statusBar.error   { color: #f87171; }
     #statusBar.ok      { color: #34d399; }
 
-    /* ── Messages ─────────────────────────────── */
+    /* â”€â”€ Messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     #messages {
       flex: 1;
       overflow-y: auto;
@@ -182,7 +184,7 @@
       font-size: 12.5px;
     }
 
-    /* ── Markdown typography (Copilot-style) ──── */
+    /* â”€â”€ Markdown typography (Copilot-style) â”€â”€â”€â”€ */
     .bubble.assistant p { margin: 6px 0; }
     .bubble.assistant h1, .bubble.assistant h2, .bubble.assistant h3,
     .bubble.assistant h4, .bubble.assistant h5 {
@@ -234,7 +236,7 @@
     }
     .bubble.assistant a:hover { text-decoration: underline; }
 
-    /* ── Inline code ───────────────────────────── */
+    /* â”€â”€ Inline code â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .bubble.assistant code {
       background: rgba(255,255,255,.06);
       color: #e9b0ff;
@@ -244,7 +246,7 @@
       font-size: 0.88em;
     }
 
-    /* ── Code blocks (Copilot-style) ───────────── */
+    /* â”€â”€ Code blocks (Copilot-style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .bubble.assistant .code-block-wrapper {
       margin: 10px 0;
       border-radius: 8px;
@@ -317,7 +319,7 @@
       50% { opacity: 0; }
     }
 
-    /* ── Input area ──────────────────────────── */
+    /* â”€â”€ Input area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     #bottomContainer {
       display: flex;
       flex-direction: column;
@@ -375,20 +377,21 @@
     }
     #inputArea {
       display: flex;
-      gap: 8px;
+      flex-direction: column;
+      gap: 12px;
       padding: 12px 14px;
-      align-items: center;
       flex: 1;
     }
     #prompt {
-      flex: 1;
+      width: 100%;
+      box-sizing: border-box;
       background: #1e1e30;
       border: 1px solid rgba(99,102,241,.25);
       border-radius: 10px;
       color: #e2e8f0;
       font-family: 'Inter', sans-serif;
       font-size: 13px;
-      padding: 10px 14px;
+      padding: 14px 16px;
       resize: none;
       outline: none;
       transition: border-color .2s;
@@ -541,7 +544,7 @@
     .model-option.selected, .agent-option.selected { background: rgba(99,102,241,0.15); color: #fff; }
 
     /* Light Mode */
-    body.light-mode { background: #f8fafc; color: #000000; }
+    body.light-mode { background: #f8fafc; color: #000000; --text-secondary: #000000; --btn-hover-bg: rgba(0,0,0,0.08); }
     .light-mode #statusBar { background: #f8fafc; color: #475569; }
     .light-mode .bubble.assistant { background: #ffffff; color: #000000; border: 1px solid rgba(0,0,0,.15); }
     .light-mode .bubble.assistant h1, .light-mode .bubble.assistant h2, .light-mode .bubble.assistant h3, .light-mode .bubble.assistant h4, .light-mode .bubble.assistant h5 { color: #000000; }
@@ -549,6 +552,16 @@
     .light-mode .bubble.assistant th, .light-mode .bubble.assistant td { border: 1px solid rgba(0,0,0,.1); }
     .light-mode .bubble.assistant code:not(pre code) { background: rgba(0,0,0,.05); color: #8b5cf6; }
     .light-mode #bottomContainer { background: #ffffff; border: 1px solid rgba(0,0,0,.15); box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+    #reportModalOverlay { background: rgba(13,13,20,0.8); }
+    .light-mode #reportModalOverlay { background: rgba(248,250,252,0.8) !important; }
+    .light-mode #reportModal { background: #ffffff !important; border: 1px solid rgba(0,0,0,.15) !important; }
+    .light-mode #reportModal > div:first-child { background: #f1f5f9 !important; border-bottom: 1px solid rgba(0,0,0,.1) !important; }
+    .light-mode #reportModal h2 { color: #000000 !important; }
+    .light-mode #reportForm input[type="text"], .light-mode #reportForm input[type="email"], .light-mode #reportForm textarea { background: #f8fafc !important; color: #000000 !important; border: 1px solid rgba(0,0,0,.2) !important; }
+    .light-mode #reportForm input::placeholder, .light-mode #reportForm textarea::placeholder { color: #64748b !important; }
+    .light-mode #reportForm label { color: #334155 !important; }
+    .light-mode #reportForm .file-upload-box { background: #f8fafc !important; border: 1px dashed rgba(0,0,0,.2) !important; }
+    .light-mode #reportForm .file-upload-box label { background: #e2e8f0 !important; color: #000 !important; }
     .light-mode #prompt { background: #f8fafc; color: #000000; border: 1px solid rgba(0,0,0,.2); }
     .light-mode #prompt::placeholder { color: #64748b; }
     .light-mode #micBtn, .light-mode #attachBtn, .light-mode #reasoningBtn, .light-mode #webSearchBtn, .light-mode #termToggleBtn { background: #f1f5f9 !important; color: #000000 !important; border: 1px solid rgba(0,0,0,.2) !important; }
@@ -592,6 +605,66 @@
     .light-mode .model-option:hover, .light-mode .agent-option:hover { background: rgba(0,0,0,0.05) !important; }
     .light-mode .model-option.selected, .light-mode .agent-option.selected { background: rgba(99,102,241,0.15) !important; color: #000000 !important; }
 
+    /* ── Welcome Screen (Jan.ai style) ─────────────── */
+    #welcomeScreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      pointer-events: none;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      /* Offset upward so it sits above the centered input */
+      padding-bottom: 200px;
+    }
+    #welcomeScreen.hidden {
+      opacity: 0;
+      transform: translateY(30px);
+      pointer-events: none;
+    }
+    #welcomeGreeting {
+      font-size: 26px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.01em;
+      text-align: center;
+      animation: welcomeFadeIn 0.6s ease-out;
+    }
+    .light-mode #welcomeGreeting {
+      background: linear-gradient(135deg, #6366f1 0%, #7c3aed 50%, #9333ea 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    @keyframes welcomeFadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Welcome state: center the input bar */
+    #chatContainer.welcome-state #bottomContainer {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      transform: translateY(-50%);
+      margin: 0 auto;
+    }
+    #chatContainer.welcome-state #messages {
+      display: none;
+    }
+    #chatContainer.welcome-state #terminal-container {
+      display: none !important;
+    }
+
   </style>
 </head>
 <body>
@@ -610,36 +683,17 @@
 
     <!-- Right Content (Chat) -->
     <div id="chatContainer">
-      <!-- Barra superior aparte para los selectores de modelo y agente -->
-      <div id="chatTopBar" style="display: flex; justify-content: center; align-items: center; gap: 16px; padding: 12px; background: #0d1117; border-bottom: 1px solid rgba(255,255,255,0.06); z-index: 10000; min-height: 60px;">
-        <!-- Custom Dropdown for Model Selector -->
-        <div id="modelDropdown" class="custom-dropdown" style="position: relative;">
-          <button type="button" id="modelBtn" title="Select Model" data-i18n-title="chat_model_title" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; height: 40px; padding: 0 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-family: 'Inter', sans-serif; font-size: 13px; transition: all .2s; min-width: 160px; max-width: 220px; gap: 8px;">
-            <span id="modelBtnText" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 160px;">gemma4:e2b</span>
-            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"></path></svg>
-          </button>
-          <div id="modelMenu" style="display: none; position: absolute; top: 48px; left: 0; background: #1e1e30; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.8); min-width: 220px; max-height: 300px; z-index: 10001;">
-            <!-- Options injected by JS -->
-          </div>
-        </div>
-
-        <!-- Custom Dropdown for Agent Mode -->
-        <div id="agentDropdown" class="custom-dropdown" style="position: relative;">
-          <button type="button" id="agentBtn" title="Agent Mode" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; height: 40px; padding: 0 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-family: 'Inter', sans-serif; font-size: 13px; transition: all .2s; min-width: 140px; gap: 8px;">
-            <span id="agentBtnText"><span class="agent-label-text" data-i18n="chat_agent_label" style="margin-right:4px;">Agent Mode:</span><strong id="agentModeVal">OFF</strong></span>
-            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"></path></svg>
-          </button>
-          <div id="agentMenu" style="display: none; position: absolute; top: 48px; left: 0; background: #1e1e30; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.8); min-width: 140px; z-index: 10001;">
-            <div class="agent-option" data-value="on">ON</div>
-            <div class="agent-option selected" data-value="off">OFF</div>
-          </div>
-        </div>
-      </div>
+      <!-- Top bar moved to index.html -->
 
       <!-- Status bar -->
-      <div id="statusBar">Model: gemma4:e2b · ready</div>
+      <div id="statusBar">Model: gemma4:e2b Â· ready</div>
 
 
+
+      <!-- Welcome Screen (Jan.ai style) -->
+      <div id="welcomeScreen">
+        <div id="welcomeGreeting" data-i18n="chat_welcome">¿Cómo puedo ayudarte hoy?</div>
+      </div>
 
       <!-- Message list -->
       <div id="messages"></div>
@@ -658,55 +712,58 @@
 
       <!-- Input -->
       <div id="bottomContainer">
-    <div id="previewArea"></div>
+        <div id="previewArea"></div>
     <form id="inputArea">
-      <button type="button" id="attachBtn" title="Attach image or PDF" data-i18n-title="chat_attach" style="align-self: center; background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all .2s; flex-shrink: 0;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </button>
-      <input type="file" id="fileInput" multiple accept=".pdf,.docx,.xlsx,.csv,image/*" style="display: none;">
-      <textarea id="prompt" rows="1" placeholder="Type a message…" autocomplete="off" data-i18n="chat_placeholder"></textarea>
+      <textarea id="prompt" rows="1" placeholder="Type a message…" autocomplete="off" spellcheck="false" data-i18n="chat_placeholder"></textarea>
       
-      <!-- Web Search Toggle Button -->
-      <button type="button" id="webSearchBtn" title="Web Search" data-i18n-title="chat_web_search" style="align-self: center; flex-shrink: 0; background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="2" y1="12" x2="22" y2="12"></line>
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-        </svg>
-      </button>
-
-      <!-- Custom Dropdown for Reasoning Effort -->
-      <div id="reasoningDropdown" class="custom-dropdown" style="position: relative; align-self: center; flex-shrink: 0; z-index: 10000;">
-        <button type="button" id="reasoningBtn" title="Reasoning effort" data-i18n-title="chat_reasoning" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all .2s;">
+      <div style="display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%;">
+        <button type="button" id="attachBtn" title="Attach image or PDF" data-i18n-title="chat_attach" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all .2s; flex-shrink: 0;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.2 1.5 1.5 2.5"/>
-            <path d="M9 18h6"/>
-            <path d="M10 22h4"/>
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>
-        <div id="reasoningMenu" style="display: none; position: absolute; bottom: 48px; right: 0; background: #1e1e30; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.8); min-width: 130px; z-index: 10001;">
-          <div class="reasoning-option" data-value="low" data-i18n="chat_reasoning_low">⚡ Low</div>
-          <div class="reasoning-option selected" data-value="medium" data-i18n="chat_reasoning_medium">💡 Medium</div>
-          <div class="reasoning-option" data-value="high" data-i18n="chat_reasoning_high">🔍 High</div>
+        <input type="file" id="fileInput" multiple accept=".pdf,.docx,.xlsx,.csv,image/*" style="display: none;">
+        
+        <!-- Web Search Toggle Button -->
+        <button type="button" id="webSearchBtn" title="Web Search" data-i18n-title="chat_web_search" style="flex-shrink: 0; background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+        </button>
+  
+        <!-- Custom Dropdown for Reasoning Effort -->
+        <div id="reasoningDropdown" class="custom-dropdown" style="position: relative; flex-shrink: 0; z-index: 10000;">
+          <button type="button" id="reasoningBtn" title="Reasoning effort" data-i18n-title="chat_reasoning" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all .2s;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.2 1.5 1.5 2.5"/>
+              <path d="M9 18h6"/>
+              <path d="M10 22h4"/>
+            </svg>
+          </button>
+          <div id="reasoningMenu" style="display: none; position: absolute; bottom: 48px; left: 50%; transform: translateX(-50%); background: #1e1e30; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.8); min-width: 130px; z-index: 10001;">
+            <div class="reasoning-option" data-value="low" data-i18n="chat_reasoning_low">⚡ Low</div>
+            <div class="reasoning-option selected" data-value="medium" data-i18n="chat_reasoning_medium">💡 Medium</div>
+            <div class="reasoning-option" data-value="high" data-i18n="chat_reasoning_high">🔍 High</div>
+          </div>
         </div>
+  
+        <!-- Terminal Toggle Button -->
+        <button type="button" id="termToggleBtn" title="Toggle Terminal" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s; flex-shrink: 0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+        </button>
+  
+        <button type="button" id="micBtn" title="Voice dictate" data-i18n-title="chat_voice">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="22"></line>
+          </svg>
+        </button>
+        <button type="submit" id="sendBtn">&#9658;</button>
       </div>
-
-      <!-- Terminal Toggle Button -->
-      <button type="button" id="termToggleBtn" title="Toggle Terminal" style="background: #2d2d4a; color: #fff; border: 1px solid rgba(99,102,241,.25); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s; flex-shrink: 0; align-self: center;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
-      </button>
-
-      <button type="button" id="micBtn" title="Voice dictate" data-i18n-title="chat_voice">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-          <line x1="12" y1="19" x2="12" y2="22"></line>
-        </svg>
-      </button>
-      <button type="submit" id="sendBtn">&#9658;</button>
     </form>
   </div>
   </div> <!-- End chatContainer -->
@@ -720,6 +777,30 @@
         <button id="canvasCloseBtn">&times;</button>
       </div>
       <iframe id="canvasFrame" sandbox="allow-scripts allow-modals allow-forms allow-same-origin"></iframe>
+    </div>
+  </div>
+
+  <!-- Report Issue Modal -->
+  <div id="reportModalOverlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: none; align-items: center; justify-content: center; z-index: 20000; opacity: 0; transition: opacity 0.3s ease;">
+    <div id="reportModal" style="background: #1e1e2e; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; width: 800px; max-width: 95vw; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); overflow: hidden;">
+      <div style="background: #11111b; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <h2 style="margin: 0; font-size: 16px; color: #fff;" data-i18n="report_app_title">Report AI Content</h2>
+        <button id="reportCloseBtn" style="background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 24px; line-height: 1; padding: 0; transition: color 0.2s;">&times;</button>
+      </div>
+      <form id="reportForm" style="padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+        <input type="text" id="reportTitle" placeholder="Issue Title" data-i18n-placeholder="report_title" required style="background: #1e1e30; border: 1px solid rgba(99,102,241,.25); border-radius: 6px; color: #e2e8f0; padding: 10px; font-family: 'Inter', sans-serif; font-size: 13px; outline: none;">
+        <input type="email" id="reportEmail" placeholder="Your Email" data-i18n-placeholder="report_email" required style="background: #1e1e30; border: 1px solid rgba(99,102,241,.25); border-radius: 6px; color: #e2e8f0; padding: 10px; font-family: 'Inter', sans-serif; font-size: 13px; outline: none;">
+        <textarea id="reportDesc" placeholder="Issue Description" data-i18n-placeholder="report_desc" required rows="8" style="background: #1e1e30; border: 1px solid rgba(99,102,241,.25); border-radius: 6px; color: #e2e8f0; padding: 10px; font-family: 'Inter', sans-serif; font-size: 13px; outline: none; resize: none;"></textarea>
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 5px;">
+            <label style="font-size: 12px; color: #94a3b8;" data-i18n="report_attach_lbl">Attach file (optional):</label>
+            <div class="file-upload-box" style="display: flex; align-items: center; gap: 10px; background: #1e1e30; border: 1px dashed rgba(99,102,241,.4); padding: 8px; border-radius: 6px;">
+                <label for="reportAttachment" style="background: #e2e8f0; color: #0f172a; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; margin: 0;" data-i18n="report_attach_btn">Choose File</label>
+                <span id="reportAttachmentName" style="color: #94a3b8; font-size: 12px; font-family: 'Inter', sans-serif;" data-i18n="report_attach_none">No file chosen</span>
+                <input type="file" id="reportAttachment" style="display: none;">
+            </div>
+        </div>
+        <button type="submit" style="background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; border: none; border-radius: 6px; padding: 12px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 15px;" data-i18n="report_submit">Send Report</button>
+      </form>
     </div>
   </div>
 

@@ -1,6 +1,6 @@
 {
   "name": "kyba-studio",
-  "version": "1.1.1",
+  "version": "1.3.0",
   "description": "Kyba is an open-source software that allows you to interact with Generative AI models.",
   "main": "main.js",
   "author": "KYBA Devs",
@@ -100,7 +100,6 @@
     "marked": "^18.0.5",
     "marked-katex-extension": "^5.1.10",
     "mermaid": "^11.16.0",
-    "monaco-editor": "^0.55.1",
     "node-pty": "^1.0.0",
     "source-map": "^0.7.6",
     "thinking-orbs": "^0.1.1"
