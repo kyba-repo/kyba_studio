@@ -79,13 +79,14 @@ def stream_subprocess(process, timeout=120):
 @app.get("/models")
 async def list_models():
     import time
+    llm_base = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip('/')
     for attempt in range(10):
         try:
-            resp = requests.get("http://127.0.0.1:11434/api/tags", timeout=5)
+            resp = requests.get(f"{llm_base}/api/tags", timeout=5)
             if resp.status_code == 200:
                 return resp.json()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[Kyba] Error fetching Ollama models: {e}")
         if attempt < 9:
             await asyncio.sleep(1)
     return {"models": []}
@@ -335,7 +336,8 @@ def _ingest_documents(path: Optional[str] = None, profile_id: str = "default") -
         # Persist periodically to avoid large in-memory state and I/O spikes
         if batch_count % persist_every == 0:
             try:
-                vs.persist()
+                if hasattr(vs, "persist"):
+                    vs.persist()
             except Exception as e:  # noqa: BLE001
                 print(f"Persist failed in batch {batch_count}: {e}")
 
@@ -346,7 +348,8 @@ def _ingest_documents(path: Optional[str] = None, profile_id: str = "default") -
 
     # Final persist to ensure everything is written to disk
     try:
-        vs.persist()
+        if hasattr(vs, "persist"):
+            vs.persist()
     except Exception as e:  # noqa: BLE001
         print(f"Final persist failed: {e}")
 
@@ -384,6 +387,54 @@ def health() -> dict[str, Any]:
     return {"status": "ok", "model": "gemma4:e2b", "knowledge_dir": str(KNOWLEDGE_BASE_DIR)}
 
 
+@app.post("/report")
+async def report_issue(request: Request) -> dict[str, Any]:
+    try:
+        data = await request.json()
+        headers = {
+            "Origin": "https://kybasoftware.com",
+            "Referer": "https://kybasoftware.com",
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        
+        attachment_b64 = data.pop("attachment_b64", None)
+        attachment_name = data.pop("attachment_name", "attachment")
+        
+        loop = asyncio.get_running_loop()
+        def _send():
+            import requests
+            import base64
+            import tempfile
+            import os
+            
+            if attachment_b64:
+                try:
+                    file_data = base64.b64decode(attachment_b64)
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(attachment_name)[1]) as tmp:
+                        tmp.write(file_data)
+                        tmp_path = tmp.name
+                    
+                    with open(tmp_path, 'rb') as f:
+                        upload_resp = requests.post("https://tmpfiles.org/api/v1/upload", files={'file': (attachment_name, f)}, timeout=30)
+                    os.unlink(tmp_path)
+                    
+                    if upload_resp.ok:
+                        url = upload_resp.json().get('data', {}).get('url', '')
+                        if url:
+                            dl_url = url.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
+                            data['message'] += f"\n\n--- Attachment ---\n{dl_url}"
+                except Exception as e:
+                    print("Error uploading attachment:", e)
+                    
+            return requests.post("https://formsubmit.co/ajax/kyba.prog@gmail.com", json=data, headers=headers, timeout=15)
+            
+        resp = await loop.run_in_executor(None, _send)
+        return {"status": "ok", "response": resp.text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/transcribe")
 async def transcribe(request: Request) -> dict[str, Any]:
     try:
@@ -418,6 +469,35 @@ def ingest(payload: IngestRequest, background_tasks: BackgroundTasks) -> dict[st
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+class DeleteDocRequest(BaseModel):
+    filename: str
+    profile_id: str = "default"
+
+
+@app.post("/knowledge/delete")
+def delete_knowledge_doc(payload: DeleteDocRequest, background_tasks: BackgroundTasks) -> dict[str, Any]:
+    file_path = KNOWLEDGE_BASE_DIR / payload.profile_id / payload.filename
+    if file_path.exists():
+        try:
+            file_path.unlink()
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to delete file: {exc}")
+    
+    global vectorstores, retrievers
+    vs, _ = _ensure_runtime(payload.profile_id)
+    if vs is not None:
+        try:
+            vs.delete_collection()
+        except Exception:
+            pass
+    
+    vectorstores.pop(payload.profile_id, None)
+    retrievers.pop(payload.profile_id, None)
+
+    background_tasks.add_task(_ingest_documents, None, payload.profile_id)
+    return {"status": "ok", "message": f"Document {payload.filename} deleted and re-indexing started."}
+
+
 @app.post("/chat")
 def chat(payload: ChatRequest) -> dict[str, Any]:
     if not payload.question or not payload.question.strip():
@@ -432,14 +512,13 @@ def chat(payload: ChatRequest) -> dict[str, Any]:
             system_prompt = payload.system_prompt.strip()
         else:
             system_prompt = (
-                "You are an expert Python code generation assistant. Always answer in Spanish. Strictly follow these rules:\n\n"
-                "Role and objective: Act as a senior Python developer who writes clean, tested, and maintainable code. Prioritize clarity, simplicity, and reasonable performance.\n"
-                "Output: Provide ONLY the requested result (code and/or tests). Do not show your \"thinking\", internal processes, or intermediate steps.\n"
-                "Code style: Follow PEP 8 and use static typing (type hints) when possible. Write small functions with a single responsibility.\n"
-                "Include clear docstrings in Google or NumPy format for public functions. Avoid unnecessary dependencies; use the standard library when sufficient.\n"
-                "Security and robustness: Validate inputs and handle errors with specific exceptions. Avoid arbitrary code execution unless explicitly requested and confirmed by the user.\n"
-                "Tests and verification: When generating modules, add at least one unit test with pytest that covers normal and edge cases. Include usage examples (if __name__ == \"__main__\": block if applicable).\n"
-                "Delivery format: If the user requests a module: return only the complete .py file. If multiple files are required, deliver one file per section and precede each with a comment indicating the file name.\n"
+                "You are an advanced generative AI model with deep expertise across diverse subjects. Always respond in the same language as the user. Strictly follow these rules:\n\n"
+                "Role and objective: Act as a versatile and highly capable assistant. You have the ability to manage tools, write programming code in any language, execute functions agentically, and use vision modes to see and analyze images.\n"
+                "Execution Environment: You are running locally on the user's machine with FULL administrative privileges, FULL internet access, and NO network restrictions. If the user asks you to run a command, install a package (e.g., pip install), or fetch data from the internet, DO IT using your tools. Do not refuse claiming network restrictions or lack of permissions.\n"
+                "Output: Provide ONLY the requested result (code, explanations, and/or tests). Do not show your \"thinking\", internal processes, or intermediate steps.\n"
+                "Code style: When programming, write clean, tested, and maintainable code. Follow best practices for the requested language. Write small functions with a single responsibility.\n"
+                "Security and robustness: Validate inputs and handle errors properly. Avoid arbitrary code execution unless explicitly requested and confirmed by the user.\n"
+                "Delivery format: If the user requests code or files, deliver them clearly formatted. When multiple files are required, deliver one file per section and precede each with a comment indicating the file name.\n"
                 "Conversation constraints: Do not dig unnecessarily; if information is missing, ask only what is essential in a short and concrete question. Do not include long explanations unless the user asks for a review or comments.\n"
             )
         
@@ -491,7 +570,7 @@ def chat(payload: ChatRequest) -> dict[str, Any]:
         else:
             user_prompt = f"Context:\n{context}\n{extra_context}\nQuestion: {payload.question}"
         options = payload.options if getattr(payload, 'options', None) else {"temperature": 0.2}
-        options["num_ctx"] = 16384
+        options.setdefault("num_ctx", 8192)
         
         messages = [{"role": "system", "content": system_prompt}]
         if payload.history:
@@ -708,6 +787,43 @@ def delegate_task(agent_name: str, task: str) -> str:
     """Delegates a specific task to another specialized agent. Only use this if you are the orchestrator."""
     return "Task delegated."
 
+@tool
+def analyze_image_clip(image_path_or_url: str, prompt: str = "Describe this image in detail.") -> str:
+    """Uses a vision model (CLIP) to analyze and describe an image from a local path or URL."""
+    try:
+        import base64
+        import requests
+        import os
+        
+        if image_path_or_url.startswith("http://") or image_path_or_url.startswith("https://"):
+            resp = requests.get(image_path_or_url, timeout=10)
+            img_bytes = resp.content
+        else:
+            if not os.path.exists(image_path_or_url):
+                return f"Error: File {image_path_or_url} not found."
+            with open(image_path_or_url, "rb") as f:
+                img_bytes = f.read()
+                
+        img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+        
+        llm_api_url = f"{llm_base_url}/api/generate"
+        payload = {
+            "model": "llava:latest", 
+            "prompt": prompt,
+            "images": [img_b64],
+            "stream": False
+        }
+        
+        resp = requests.post(llm_api_url, json=payload, timeout=60)
+        if resp.ok:
+            return resp.json().get("response", "Could not analyze image.")
+        else:
+            if resp.status_code == 404:
+                return "Error: Vision model 'llava' is not installed in Ollama. Please run 'kyba run llava' to install it so this tool can analyze images."
+            return f"Error from vision model: {resp.text}"
+    except Exception as e:
+        return f"Error analyzing image: {e}"
+
 tools_by_name = {
     "run_command": run_command,
     "read_file": read_file,
@@ -716,6 +832,7 @@ tools_by_name = {
     "pip_install": pip_install,
     "search_web": search_web,
     "read_webpage": read_webpage,
+    "analyze_image_clip": analyze_image_clip,
     "delegate_task": delegate_task
 }
 agent_tools = list(tools_by_name.values())
@@ -736,6 +853,8 @@ class AgentExecuteRequest(BaseModel):
 async def agent_chat(payload: AgentChatRequest) -> dict[str, Any]:
     try:
         options = payload.options or {"temperature": 0.2}
+        options["keep_alive"] = "15m"
+        options.setdefault("num_ctx", 8192)
         llm = ChatOllama(model=payload.model, base_url=llm_base_url, **options)
         
         combined_tools = agent_tools.copy()
@@ -773,7 +892,42 @@ async def agent_chat(payload: AgentChatRequest) -> dict[str, Any]:
         processed_messages = []
         for i, m in enumerate(messages):
             if isinstance(m, dict) and m.get("role") == "user":
-                content_list = [{"type": "text", "text": m.get("content", "")}]
+                content_text = m.get("content", "")
+                
+                # Check if this is the last user message in the list
+                is_last_user_msg = all(not (isinstance(m2, dict) and m2.get("role") == "user") for m2 in messages[i+1:])
+                if is_last_user_msg and getattr(payload, "documents", None):
+                    extra_context = ""
+                    for doc in payload.documents:
+                        try:
+                            import base64
+                            import tempfile
+                            filename = doc.get("filename", "documento.pdf")
+                            content_b64 = doc.get("content", "")
+                            if content_b64.startswith("data:"):
+                                content_b64 = content_b64.split(",")[1]
+                            
+                            file_data = base64.b64decode(content_b64)
+                            suffix = os.path.splitext(filename)[1].lower()
+                            
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+                                tmp_file.write(file_data)
+                                tmp_path = tmp_file.name
+                                
+                            docs = _load_single_document(Path(tmp_path))
+                            extra_context += f"\n--- Content of {filename} ---\n"
+                            for d in docs:
+                                extra_context += d.page_content + "\n"
+                                
+                            os.unlink(tmp_path)
+                        except Exception as e:
+                            print(f"Error processing document in agent: {e}")
+                    
+                    if extra_context:
+                        content_text = f"Context from documents:\n{extra_context}\n\nQuestion: {content_text}"
+                        print(f"DEBUG: Appended document context to last user message. Length of extra_context: {len(extra_context)}")
+                
+                content_list = [{"type": "text", "text": content_text}]
                 has_images = False
                 
                 if "attachments" in m:
@@ -795,22 +949,37 @@ async def agent_chat(payload: AgentChatRequest) -> dict[str, Any]:
                 if has_images:
                     processed_messages.append(HumanMessage(content=content_list))
                 else:
+                    m["content"] = content_text
                     processed_messages.append(m)
             else:
                 processed_messages.append(m)
                 
         messages = processed_messages
 
-        if not any(m.get("role") == "system" if isinstance(m, dict) else getattr(m, "type", "") == "system" for m in messages):
+        tool_instructions = (
+            "You are a local AI agent with access to tools. "
+            "CRITICAL: If the user asks you to check system state, run a command, search the internet, or install something, "
+            "you MUST use the appropriate tool. DO NOT hallucinate the output of a command. "
+            "ALWAYS use tools when requested, especially the 'search_web' tool if the user mentions internet or web searches. "
+            "IMPORTANT: Always respond in the same language as the user. "
+            "When the user requests something that can be resolved with a tool, handle all necessary requests to the tool agentically so the user does not have to repeat the request again just for the tool to receive it."
+        )
+
+        system_found = False
+        for m in messages:
+            role = m.get("role") if isinstance(m, dict) else getattr(m, "type", "")
+            if role == "system":
+                if isinstance(m, dict):
+                    m["content"] = f"{m.get('content', '')}\n\n{tool_instructions}"
+                else:
+                    m.content = f"{m.content}\n\n{tool_instructions}"
+                system_found = True
+                break
+
+        if not system_found:
             system_msg = {
                 "role": "system",
-                "content": (
-                    "You are a local AI agent with access to tools (run_command, run_python, pip_install, etc). "
-                    "CRITICAL: If the user asks you to check system state, run a command, or install something, "
-                    "you MUST use the appropriate tool. DO NOT hallucinate the output of a command. "
-                    "If asked for the python version, DO NOT guess it. Use run_command with 'python --version'. "
-                    "ALWAYS use tools when requested."
-                )
+                "content": tool_instructions
             }
             messages = [system_msg] + messages
         
@@ -839,7 +1008,38 @@ async def agent_chat(payload: AgentChatRequest) -> dict[str, Any]:
             content = response.content
             if isinstance(content, str):
                 import re
+                import json
+                import uuid
                 content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+                
+                # Fallback: Check if the model outputted a raw tool call JSON string
+                try:
+                    cleaned_content = content.strip()
+                    if cleaned_content.startswith('"name"'):
+                        cleaned_content = "{" + cleaned_content
+                        
+                    match = re.search(r'"name"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*(\{.*\})', cleaned_content.replace('\n', ' '))
+                    if match:
+                        name = match.group(1)
+                        args_str = match.group(2)
+                        parsed_args = None
+                        
+                        # Find the first valid JSON object from the end to handle trailing garbage
+                        for i in range(len(args_str), 0, -1):
+                            if args_str[i-1] == '}':
+                                try:
+                                    parsed_args = json.loads(args_str[:i])
+                                    break
+                                except json.JSONDecodeError:
+                                    pass
+                                    
+                        if parsed_args is not None:
+                            call_id = f"call_{uuid.uuid4().hex[:8]}"
+                            return {"type": "tool_call", "calls": [{"id": call_id, "name": name, "args": parsed_args}]}
+                except Exception as e:
+                    print(f"[Kyba][backend] Fallback tool parse error: {e}")
+                    pass
+                    
             return {"type": "message", "content": content}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
@@ -861,7 +1061,7 @@ async def agent_execute(payload: AgentExecuteRequest) -> dict[str, Any]:
             
             agent_system = target_agent.get("systemPrompt", "You are an AI assistant.")
             agent_model = target_agent.get("baseModel", "gemma4:e2b")
-            agent_options = {"temperature": float(target_agent.get("temperature", 0.2)), "top_p": float(target_agent.get("top_p", 0.9)), "num_ctx": 16384}
+            agent_options = {"temperature": float(target_agent.get("temperature", 0.2)), "top_p": float(target_agent.get("top_p", 0.9)), "num_ctx": 4096, "keep_alive": "15m"}
             
             llm = ChatOllama(model=agent_model, base_url=llm_base_url, **agent_options)
             messages = [{"role": "system", "content": agent_system}]
@@ -911,3 +1111,306 @@ async def agent_execute(payload: AgentExecuteRequest) -> dict[str, Any]:
         return {"result": f"Error: Tool {payload.tool_name} not found."}
     except Exception as exc:
         return {"result": f"Tool execution failed: {str(exc)}"}
+
+# --- OpenAI Compatible Endpoints ---
+
+@app.get("/v1/models")
+async def openai_models():
+    """
+    Returns the list of models in an OpenAI compatible format.
+    """
+    llm_base_url = "http://127.0.0.1:11434"
+    try:
+        r = requests.get(f"{llm_base_url}/v1/models", timeout=5)
+        if r.status_code == 200:
+            return r.json()
+    except Exception:
+        pass
+    return {"object": "list", "data": []}
+
+@app.post("/v1/completions")
+async def openai_completions(request: Request):
+    """
+    OpenAI-compatible legacy completions endpoint.
+    Translates to Ollama's /api/generate since Ollama doesn't have /v1/completions.
+    Used by Continue.dev for tab autocomplete (FIM / Fill-In-the-Middle).
+    """
+    llm_base_url = "http://127.0.0.1:11434"
+    
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    
+    # Check if the requested model is a custom Kyba model (same logic as /v1/chat/completions)
+    requested_model = payload.get("model", "")
+    user_data_path = os.environ.get("KYBA_USER_DATA")
+    if user_data_path:
+        custom_models_path = os.path.join(user_data_path, "kyba_custom_models.json")
+        if os.path.exists(custom_models_path):
+            try:
+                with open(custom_models_path, "r", encoding="utf-8") as f:
+                    custom_models = json.load(f)
+                matched_model = next((m for m in custom_models if m.get("id") == requested_model or m.get("name") == requested_model), None)
+                if matched_model:
+                    print(f"[Kyba Link] /v1/completions: Intercepted custom model '{requested_model}'. Swapping to base model '{matched_model.get('baseModel')}'")
+                    payload["model"] = matched_model.get("baseModel", requested_model)
+            except Exception as e:
+                print(f"[Kyba Link] Error processing custom models in /v1/completions: {e}")
+    
+    # Translate OpenAI completions format -> Ollama /api/generate format
+    ollama_payload = {
+        "model": payload.get("model", ""),
+        "prompt": payload.get("prompt", ""),
+        "raw": True,  # Skip prompt template wrapping for FIM
+        "stream": payload.get("stream", False),
+    }
+    
+    # FIM suffix support
+    if "suffix" in payload and payload["suffix"]:
+        ollama_payload["suffix"] = payload["suffix"]
+    
+    # Map options
+    options = {}
+    if "temperature" in payload:
+        options["temperature"] = payload["temperature"]
+    if "max_tokens" in payload:
+        options["num_predict"] = payload["max_tokens"]
+    if "top_p" in payload:
+        options["top_p"] = payload["top_p"]
+    if "stop" in payload:
+        ollama_payload["stop"] = payload["stop"] if isinstance(payload["stop"], list) else [payload["stop"]]
+    if options:
+        ollama_payload["options"] = options
+    
+    import uuid, time
+    request_id = f"cmpl-{uuid.uuid4().hex[:24]}"
+    model_name = payload.get("model", "")
+    
+    is_stream = payload.get("stream", False)
+    
+    if is_stream:
+        try:
+            r = requests.post(f"{llm_base_url}/api/generate", json=ollama_payload, stream=True, timeout=120)
+            if r.status_code != 200:
+                text = r.text
+                r.close()
+                raise HTTPException(status_code=r.status_code, detail=text)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+            
+        async def stream_generator():
+            try:
+                for line in r.iter_lines():
+                    if not line:
+                        continue
+                    try:
+                        chunk_data = json.loads(line)
+                    except Exception:
+                        continue
+                    
+                    text_chunk = chunk_data.get("response", "")
+                    done = chunk_data.get("done", False)
+                    
+                    sse_chunk = {
+                        "id": request_id,
+                        "object": "text_completion",
+                        "created": int(time.time()),
+                        "model": model_name,
+                        "choices": [{
+                            "text": text_chunk,
+                            "index": 0,
+                            "logprobs": None,
+                            "finish_reason": "stop" if done and not text_chunk else None
+                        }]
+                    }
+                    yield f"data: {json.dumps(sse_chunk)}\n\n"
+                    
+                    if done:
+                        yield "data: [DONE]\n\n"
+            finally:
+                r.close()
+                
+        return StreamingResponse(stream_generator(), media_type="text/event-stream")
+    else:
+        try:
+            r = requests.post(f"{llm_base_url}/api/generate", json=ollama_payload, timeout=300)
+            if r.status_code != 200:
+                raise HTTPException(status_code=r.status_code, detail=r.text)
+            
+            ollama_resp = r.json()
+            
+            # Translate Ollama response -> OpenAI completions format
+            return {
+                "id": request_id,
+                "object": "text_completion",
+                "created": int(time.time()),
+                "model": model_name,
+                "choices": [{
+                    "text": ollama_resp.get("response", ""),
+                    "index": 0,
+                    "logprobs": None,
+                    "finish_reason": "stop"
+                }],
+                "usage": {
+                    "prompt_tokens": ollama_resp.get("prompt_eval_count", 0),
+                    "completion_tokens": ollama_resp.get("eval_count", 0),
+                    "total_tokens": ollama_resp.get("prompt_eval_count", 0) + ollama_resp.get("eval_count", 0)
+                }
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/v1/chat/completions")
+async def openai_chat_completions(request: Request):
+    """
+    OpenAI-compatible endpoint proxy.
+    Allows external tools (like Cline, Cursor, LM Studio, etc.) to use Kyba as a local API server.
+    """
+    llm_base_url = "http://127.0.0.1:11434"
+    
+    try:
+        ollama_payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+        
+    # Check if the requested model is a custom Kyba model
+    requested_model = ollama_payload.get("model", "")
+    user_data_path = os.environ.get("KYBA_USER_DATA")
+    if user_data_path:
+        custom_models_path = os.path.join(user_data_path, "kyba_custom_models.json")
+        if os.path.exists(custom_models_path):
+            try:
+                import json
+                with open(custom_models_path, "r", encoding="utf-8") as f:
+                    custom_models = json.load(f)
+                
+                # Find matching custom model by ID or Name
+                matched_model = next((m for m in custom_models if m.get("id") == requested_model or m.get("name") == requested_model), None)
+                
+                if matched_model:
+                    print(f"[Kyba Link] Intercepted custom model '{requested_model}'. Swapping to base model '{matched_model.get('baseModel')}'")
+                    # Swap model
+                    ollama_payload["model"] = matched_model.get("baseModel", "gemma4:e2b")
+                    
+                    # Apply temperature if set
+                    if "temperature" in matched_model:
+                        ollama_payload["temperature"] = matched_model["temperature"]
+                    
+                    if "top_p" in matched_model:
+                        ollama_payload["top_p"] = matched_model["top_p"]
+                        
+                    # Inject system prompt
+                    sys_prompt = matched_model.get("systemPrompt", "").strip()
+                    if sys_prompt:
+                        messages = ollama_payload.get("messages", [])
+                        
+                        # Replace or prepend system prompt
+                        if len(messages) > 0 and messages[0].get("role") == "system":
+                            # Merge or replace. Here we replace to enforce the agent's persona
+                            messages[0]["content"] = sys_prompt + "\n\n" + messages[0].get("content", "")
+                        else:
+                            messages.insert(0, {"role": "system", "content": sys_prompt})
+                        
+                        ollama_payload["messages"] = messages
+            except Exception as e:
+                print(f"[Kyba Link] Error processing custom models: {e}")
+
+    is_stream = ollama_payload.get("stream", False)
+    
+    if is_stream:
+        try:
+            r = requests.post(f"{llm_base_url}/v1/chat/completions", json=ollama_payload, stream=True, timeout=120)
+            if r.status_code != 200:
+                text = r.text
+                r.close()
+                raise HTTPException(status_code=r.status_code, detail=text)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+            
+        async def stream_generator():
+            try:
+                for chunk in r.iter_content(chunk_size=None):
+                    if chunk:
+                        yield chunk
+            finally:
+                r.close()
+                
+        return StreamingResponse(stream_generator(), media_type="text/event-stream")
+    else:
+        try:
+            r = requests.post(f"{llm_base_url}/v1/chat/completions", json=ollama_payload, timeout=300)
+            if r.status_code != 200:
+                raise HTTPException(status_code=r.status_code, detail=r.text)
+            return r.json()
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+# ==============================================================================
+# E2E ENCRYPTION PROXY (Opción 1: Encriptación a nivel de aplicación)
+# ==============================================================================
+import base64
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+# Clave compartida AES-256 (32 bytes). DEBE ser idéntica en la extensión.
+E2E_PSK = b"kyba-secret-key-2026-00000000000"
+
+def decrypt_payload(encrypted_b64: str) -> dict:
+    data = base64.b64decode(encrypted_b64)
+    nonce = data[:12]
+    ciphertext = data[12:]
+    aesgcm = AESGCM(E2E_PSK)
+    plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+    return json.loads(plaintext.decode('utf-8'))
+
+def encrypt_string(text: str) -> str:
+    import os
+    aesgcm = AESGCM(E2E_PSK)
+    nonce = os.urandom(12)
+    ciphertext = aesgcm.encrypt(nonce, text.encode('utf-8'), None)
+    return base64.b64encode(nonce + ciphertext).decode('utf-8')
+
+class EncryptedRequest(BaseModel):
+    payload: str
+
+@app.post("/e2e/api/chat")
+@app.post("/e2e/api/generate")
+async def e2e_proxy(request: Request, body: EncryptedRequest):
+    try:
+        decrypted_json = decrypt_payload(body.payload)
+        # Extraer el path original (/api/chat o /api/generate)
+        path = request.url.path.replace("/e2e", "")
+        
+        is_stream = decrypted_json.get("stream", True)
+        
+        if is_stream:
+            def stream_generator():
+                with requests.post(f"{llm_base_url}{path}", json=decrypted_json, stream=True, timeout=300) as r:
+                    for line in r.iter_lines():
+                        if line:
+                            text = line.decode('utf-8')
+                            encrypted_chunk = encrypt_string(text)
+                            yield encrypted_chunk + "\n"
+            return StreamingResponse(stream_generator(), media_type="text/plain")
+        else:
+            resp = requests.post(f"{llm_base_url}{path}", json=decrypted_json, timeout=300)
+            return {"payload": encrypt_string(resp.text)}
+    except Exception as e:
+        print(f"[E2E] Error en proxy: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/e2e/api/tags")
+async def e2e_tags():
+    try:
+        resp = requests.get(f"{llm_base_url}/api/tags", timeout=10)
+        return {"payload": encrypt_string(resp.text)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

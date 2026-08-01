@@ -1,0 +1,40 @@
+
+/* Hub Quick Filters */
+.hub-filter-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.hub-filter-btn:hover {
+    color: #e6eef6;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.hub-filter-btn.active {
+    color: #fff;
+    background: rgba(99, 102, 241, 0.2);
+    border-bottom: 2px solid #8b5cf6;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.light-mode .hub-filter-btn {
+    color: #64748b;
+}
+
+.light-mode .hub-filter-btn:hover {
+    color: #000000;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.light-mode .hub-filter-btn.active {
+    color: #000;
+    background: rgba(99, 102, 241, 0.1);
+    border-bottom: 2px solid #8b5cf6;
+}

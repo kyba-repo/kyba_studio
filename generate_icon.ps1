@@ -1,6 +1,6 @@
 Add-Type -AssemblyName System.Drawing
 
-function Generate-AppXIcon {
+function New-AppXIcon {
     param (
         [int]$width,
         [int]$height,
@@ -47,17 +47,17 @@ function Generate-AppXIcon {
 $baseDir = "c:\Users\ger_x\OneDrive\Documentos\proyecto-20260620T170618Z-3-001\proyecto"
 
 # Generate main icon.png (512x512) for electron-builder
-Generate-AppXIcon 512 512 "$baseDir\build\icon.png"
+New-AppXIcon 512 512 "$baseDir\build\icon.png"
 # Generate renderer icon.png
-Generate-AppXIcon 256 256 "$baseDir\renderer\icon.png"
+New-AppXIcon 256 256 "$baseDir\renderer\icon.png"
 
 # AppX required assets
-Generate-AppXIcon 150 150 "$baseDir\build\appx\Square150x150Logo.png"
-Generate-AppXIcon 44 44 "$baseDir\build\appx\Square44x44Logo.png"
-Generate-AppXIcon 50 50 "$baseDir\build\appx\StoreLogo.png"
-Generate-AppXIcon 310 150 "$baseDir\build\appx\Wide310x150Logo.png"
-Generate-AppXIcon 71 71 "$baseDir\build\appx\SmallTile.png"
-Generate-AppXIcon 310 310 "$baseDir\build\appx\LargeTile.png"
+New-AppXIcon 150 150 "$baseDir\build\appx\Square150x150Logo.png"
+New-AppXIcon 44 44 "$baseDir\build\appx\Square44x44Logo.png"
+New-AppXIcon 50 50 "$baseDir\build\appx\StoreLogo.png"
+New-AppXIcon 310 150 "$baseDir\build\appx\Wide310x150Logo.png"
+New-AppXIcon 71 71 "$baseDir\build\appx\SmallTile.png"
+New-AppXIcon 310 310 "$baseDir\build\appx\LargeTile.png"
 
 # Create ICO file from the 256x256 renderer icon
 $pngBytes = [System.IO.File]::ReadAllBytes("$baseDir\renderer\icon.png")

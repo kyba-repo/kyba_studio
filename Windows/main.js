@@ -127,17 +127,28 @@ async function ensureBackendServer() {
   process.env.KYBA_RAG_PORT = String(resolvedPort);
   process.env.KYBA_RAG_URL = `http://127.0.0.1:${resolvedPort}`;
 
+  let host = '127.0.0.1';
+  try {
+    const configPath = path.join(app.getPath('userData'), 'network_config.json');
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (config.expose_network) host = '0.0.0.0';
+    }
+  } catch (e) {
+    console.error('Error reading network_config.json:', e);
+  }
+
   if (app.isPackaged && (fs.existsSync(exePath) || fs.existsSync(path.join(__dirname, 'kyba-server.exe')))) {
     const finalExe = fs.existsSync(exePath) ? exePath : path.join(__dirname, 'kyba-server.exe');
-    console.log('[Kyba] Starting precompiled backend:', finalExe, '--port', resolvedPort);
-    backendProcess = spawn(finalExe, ['--port', String(resolvedPort)], {
+    console.log('[Kyba] Starting precompiled backend:', finalExe, '--host', host, '--port', resolvedPort);
+    backendProcess = spawn(finalExe, ['--host', host, '--port', String(resolvedPort)], {
       cwd: baseCwd,
       env: process.env,
       stdio: ['ignore', 'pipe', 'pipe']
     });
   } else {
     const pythonExe = getBackendPythonExecutable();
-    const args = ['-m', 'uvicorn', 'server:app', '--host', '127.0.0.1', '--port', String(resolvedPort)];
+    const args = ['-m', 'uvicorn', 'server:app', '--host', host, '--port', String(resolvedPort)];
     console.log('[Kyba] Starting backend with', pythonExe, args.join(' '));
 
     backendProcess = spawn(pythonExe, args, {
@@ -945,6 +956,27 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
+  const setupWindowOpenHandler = (webContents) => {
+    webContents.setWindowOpenHandler(({ url }) => {
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        openKybaWebView(url);
+        return { action: 'deny' };
+      }
+      return { action: 'allow' };
+    });
+
+    webContents.on('will-navigate', (event, url) => {
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        // Ignorar websockets locales
+        if (url.includes('127.0.0.1') || url.includes('localhost')) return;
+        event.preventDefault();
+        openKybaWebView(url);
+      }
+    });
+  };
+
+  setupWindowOpenHandler(mainWindow.webContents);
+
   // ── BrowserView: AI/chat panel ────────────────────────────────────────────
   const createChatView = () => {
     chatView = new BrowserView({
@@ -977,8 +1009,24 @@ function createWindow() {
     // Bounds se establecen al hacer setBrowserView en app.whenReady()
   };
 
+  function openKybaWebView(url) {
+    const webWin = new BrowserWindow({
+      title: 'Kyba WebView',
+      width: 1000,
+      height: 700,
+      autoHideMenuBar: true,
+      icon: path.join(__dirname, 'renderer', 'icon.png'),
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    webWin.loadURL(url);
+  }
+
   mainWindow.once('ready-to-show', () => {
     createChatView();
+    setupWindowOpenHandler(chatView.webContents);
   });
 
   // Ensure menu bar is hidden (force) so it doesn't show at startup
@@ -1078,6 +1126,26 @@ function createWindow() {
   }, 6000);
 
   // ── Save file to disk via native dialog ──────────────────────────────────
+  ipcMain.on('set-network-exposed', (_, exposed) => {
+    try {
+      const configPath = path.join(app.getPath('userData'), 'network_config.json');
+      fs.writeFileSync(configPath, JSON.stringify({ expose_network: exposed }), 'utf8');
+    } catch(e) {
+      console.error('Error saving network config', e);
+    }
+  });
+
+  ipcMain.handle('get-network-exposed', () => {
+    try {
+      const configPath = path.join(app.getPath('userData'), 'network_config.json');
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        return config.expose_network === true;
+      }
+    } catch(e) {}
+    return false;
+  });
+
   ipcMain.handle('save-file', async (_, content, ext) => {
     try {
       const win = BrowserWindow.getFocusedWindow() || mainWindow;

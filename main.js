@@ -1,4 +1,4 @@
-const { app, BrowserWindow, BrowserView, ipcMain } = require('electron');
+const { app, BrowserWindow, BrowserView, ipcMain, Tray, Menu } = require('electron');
 const { dialog } = require('electron');
 const electronPrompt = require('electron-prompt');
 const path = require('path');
@@ -9,15 +9,25 @@ const pty = require('node-pty');
 
 const baseCwd = app.isPackaged ? process.resourcesPath : __dirname;
 
+// Ensure development and production builds share the same local storage and user data
+app.setPath('userData', path.join(app.getPath('appData'), 'kyba-studio'));
+app.commandLine.appendSwitch('log-level', '3'); // Suppress Chromium network/SSL logging
+app.commandLine.appendSwitch('ignore-certificate-errors', 'true'); // Suppress SSL handshake errors for scraped sites
+
 // ── Global state ──────────────────────────────────────────────────────────────
 let mainWindow;
 let chatView;
 let pendingProviderUrl = null;
+let tray = null;
+let serverMode = true;
+let forceQuit = false;
+let backendIsReady = false;
 
 let backendProcess = null;
 let backendPort = Number(process.env.KYBA_RAG_PORT || 8000);
 // Track active child processes so we can kill them when the app exits
 const _activeChildren = new Set();
+let kybaStartedOllama = false;
 let currentAbortController = null;
 
 function cleanupAllProcesses() {
@@ -41,6 +51,17 @@ function cleanupAllProcesses() {
     } catch (e) { }
   }
   _activeChildren.clear();
+
+  if (kybaStartedOllama && process.platform === 'win32') {
+    try {
+      const { execSync } = require('child_process');
+      execSync('taskkill /F /IM llama-server.exe /T', { stdio: 'ignore' });
+    } catch (e) {}
+    try {
+      const { execSync } = require('child_process');
+      execSync('taskkill /F /IM ollama_llama_server.exe /T', { stdio: 'ignore' });
+    } catch (e) {}
+  }
 }
 
 // Ensure processes are killed on abrupt exit (Ctrl+C in terminal)
@@ -75,7 +96,14 @@ function initPty(webContents) {
   // Prefer powershell over cmd on windows if COMSPEC points to cmd
   const actualShell = (process.platform === 'win32' && shell.toLowerCase().includes('cmd.exe')) ? 'powershell.exe' : shell;
   
-  shellPty = pty.spawn(actualShell, [], {
+  let shellArgs = [];
+  if (actualShell.toLowerCase().includes('powershell') || actualShell.toLowerCase().includes('pwsh')) {
+    shellArgs = ['-NoExit', '-Command', 'function kyba { if ($args.Count -gt 0 -and $args[0] -match "^(run|list|rm|ps|pull|push|show|cp)$") { $cmd = $args[0]; $rest = if ($args.Count -gt 1) { $args[1..($args.Count-1)] } else { @() }; & ollama $cmd $rest } else { Write-Host "Comandos soportados: kyba run, kyba list, kyba rm, kyba ps" } }'];
+  } else if (actualShell.toLowerCase().includes('bash') || actualShell.toLowerCase().includes('zsh')) {
+    shellArgs = ['-i', '-c', 'alias kyba="ollama"; exec ' + actualShell];
+  }
+  
+  shellPty = pty.spawn(actualShell, shellArgs, {
     name: 'xterm-color',
     cols: 80,
     rows: 24,
@@ -172,22 +200,33 @@ async function ensureBackendServer() {
   process.env.KYBA_RAG_PORT = String(resolvedPort);
   process.env.KYBA_RAG_URL = `http://127.0.0.1:${resolvedPort}`;
 
+  let host = '127.0.0.1';
+  try {
+    const configPath = path.join(app.getPath('userData'), 'network_config.json');
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (config.expose_network) host = '0.0.0.0';
+    }
+  } catch (e) {
+    console.error('Error reading network_config.json:', e);
+  }
+
   if (app.isPackaged && (fs.existsSync(exePath) || fs.existsSync(path.join(__dirname, serverBinary)))) {
     const finalExe = fs.existsSync(exePath) ? exePath : path.join(__dirname, serverBinary);
-    console.log('[Kyba] Starting precompiled backend:', finalExe, '--port', resolvedPort);
-    backendProcess = spawn(finalExe, ['--port', String(resolvedPort)], {
+    console.log('[Kyba] Starting precompiled backend:', finalExe, '--host', host, '--port', resolvedPort);
+    backendProcess = spawn(finalExe, ['--host', host, '--port', String(resolvedPort)], {
       cwd: baseCwd,
-      env: process.env,
+      env: { ...process.env, KYBA_USER_DATA: app.getPath('userData') },
       stdio: ['ignore', 'pipe', 'pipe']
     });
   } else {
     const pythonExe = getBackendPythonExecutable();
-    const args = ['-m', 'uvicorn', 'server:app', '--host', '127.0.0.1', '--port', String(resolvedPort)];
+    const args = ['-m', 'uvicorn', 'server:app', '--host', host, '--port', String(resolvedPort)];
     console.log('[Kyba] Starting backend with', pythonExe, args.join(' '));
 
     backendProcess = spawn(pythonExe, args, {
       cwd: baseCwd,
-      env: process.env,
+      env: { ...process.env, KYBA_USER_DATA: app.getPath('userData') },
       stdio: ['ignore', 'pipe', 'pipe']
     });
   }
@@ -314,6 +353,8 @@ async function ensureOllamaCLI() {
       windowsHide: true
     });
     
+    kybaStartedOllama = true;
+    child.isOllama = true;
     _activeChildren.add(child);
     child.on('exit', () => _activeChildren.delete(child));
     
@@ -326,18 +367,40 @@ async function ensureOllamaCLI() {
 }
 
 app.whenReady().then(async () => {
+  try {
+    const configPath = path.join(app.getPath('userData'), 'server_mode_config.json');
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      serverMode = true; // Always enabled as per user request
+    }
+  } catch(e) { console.error('Error loading server mode config', e); }
+
+  tray = new Tray(path.join(__dirname, 'renderer', 'icon.png'));
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Abrir Kyba', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } else { createWindow(); } } },
+    { type: 'separator' },
+    { label: 'Salir', click: () => { forceQuit = true; app.quit(); } }
+  ]);
+  tray.setToolTip('Kyba Studio');
+  tray.setContextMenu(contextMenu);
+  tray.on('double-click', () => {
+    if (mainWindow) { mainWindow.show(); mainWindow.focus(); } else { createWindow(); }
+  });
+
   const { session } = require('electron');
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    if (permission === 'media') {
+    const url = webContents.getURL();
+    if (url.startsWith('file://')) {
       return callback(true);
     }
-    return callback(true);
+    return callback(false);
   });
   session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
-    if (permission === 'media') {
+    const url = webContents.getURL();
+    if (url.startsWith('file://')) {
       return true;
     }
-    return true;
+    return false;
   });
 
   try {
@@ -370,7 +433,7 @@ app.whenReady().then(async () => {
         body: JSON.stringify({
           model: targetModel,
           keep_alive: '15m',
-          options: { temperature: 0.2, num_ctx: 16384 }
+          options: { temperature: 0.2 }
         })
       });
       console.log(`[Kyba] Model ${targetModel} preloaded successfully.`);
@@ -379,6 +442,7 @@ app.whenReady().then(async () => {
     }
 
     if (mainWindow && mainWindow.webContents) {
+      backendIsReady = true;
       mainWindow.webContents.send('backend-ready');
     }
     if (chatView && chatView.webContents) {
@@ -387,11 +451,13 @@ app.whenReady().then(async () => {
     
     // Attach chatView now that loading is done so it doesn't cover the loading overlay
     if (mainWindow && chatView) {
-      try {
-        mainWindow.setBrowserView(chatView);
-        const { width, height } = mainWindow.getContentBounds();
-        chatView.setBounds({ x: 0, y: 45, width: width, height: height - 45 });
-      } catch(e) {}
+      setTimeout(() => {
+        try {
+          mainWindow.setBrowserView(chatView);
+          const { width, height } = mainWindow.getContentBounds();
+          chatView.setBounds({ x: 0, y: 45, width: width, height: height - 45 });
+        } catch(e) {}
+      }, 500); // Wait for the loading overlay to fade out
     }
 
   } catch (e) {
@@ -541,7 +607,29 @@ ipcMain.handle('select-files', async (_, options) => {
 });
 
 // ── IPC: List documents in knowledge base ───────────────────────────────────────
-ipcMain.handle('list-model-docs', async (_, profileId) => {
+ipcMain.handle('delete-model-doc', async (_, payload) => {
+    try {
+      await ensureBackendServer();
+      const fetchFn = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
+      const backendUrl = getBackendBaseUrl() + '/knowledge/delete';
+      const res = await fetchFn(backendUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        return { ok: true, data: await res.json() };
+      } else {
+        const err = await res.text();
+        return { ok: false, error: err };
+      }
+    } catch (e) {
+      console.error('[Kyba] delete-model-doc error:', e);
+      return { ok: false, error: e.message };
+    }
+  });
+
+  ipcMain.handle('list-model-docs', async (_, profileId) => {
   try {
     const fs = require('fs');
     const os = require('os');
@@ -599,6 +687,54 @@ ipcMain.handle('check-model', async (_, modelName) => {
       resolve({ installed: false });
     }
   });
+});
+ipcMain.handle('fetch-ollama-hub', async () => {
+  try {
+    const fetchFn = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
+    const res = await fetchFn('https://ollama.com/library?sort=popular');
+    if (!res.ok) return { ok: false, error: `Status ${res.status}` };
+    const html = await res.text();
+    const models = [];
+    const modelBlocks = html.match(/<a href="\/library\/[^"]+"[^>]*>[\s\S]*?<\/a>/g) || [];
+    for (const block of modelBlocks) {
+      const idMatch = block.match(/<a href="\/library\/([^"]+)"/);
+      if (!idMatch) continue;
+      const id = idMatch[1];
+      
+      const nameMatch = block.match(/<span[^>]*truncate[^>]*>([\s\S]*?)<\/span>/);
+      const name = nameMatch ? nameMatch[1].trim() : id;
+      
+      const descMatch = block.match(/<p[^>]*text-neutral-800[^>]*>([\s\S]*?)<\/p>/);
+      const description = descMatch ? descMatch[1].trim() : '';
+      
+      const pullsMatch = block.match(/>([^<]+)<\/span>\s*<span[^>]*>&nbsp;Pulls<\/span>/);
+      const pulls = pullsMatch ? pullsMatch[1].trim() : '';
+      
+      const tagsMatch = block.match(/>([^<]+)<\/span>\s*<span[^>]*>&nbsp;Tags<\/span>/);
+      const tags = tagsMatch ? tagsMatch[1].trim() : '';
+      
+      const variantsMatches = block.match(/<span[^>]*bg-\[#ddf4ff\][^>]*>([\s\S]*?)<\/span>/g) || [];
+      const variants = variantsMatches.map(v => {
+        const m = v.match(/>([\s\S]*?)<\/span>/);
+        return m ? m[1].trim() : '';
+      }).filter(Boolean);
+      
+      const capsMatches = block.match(/<span[^>]*bg-indigo-50[^>]*>([\s\S]*?)<\/span>/g) || [];
+      const capabilities = capsMatches.map(c => {
+        const m = c.match(/>([\s\S]*?)<\/span>/);
+        return m ? m[1].trim() : '';
+      }).filter(Boolean);
+      
+      models.push({ id, name, description, pulls, tags, variants, capabilities });
+    }
+    return { ok: true, models };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.on('get-backend-port', (event) => {
+  event.returnValue = backendPort || 8000;
 });
 
 ipcMain.handle('pull-model', async (event, modelName) => {
@@ -699,7 +835,9 @@ async function ensureOllamaModel(modelName, sendToViews, abortSignal) {
           if (abortSignal) {
             onAbort = () => {
               try { pullChild.kill(); } catch (e) { }
-              reject(new Error('AbortError'));
+              const err = new Error('AbortError');
+              err.name = 'AbortError';
+              reject(err);
             };
             abortSignal.addEventListener('abort', onAbort);
           }
@@ -822,11 +960,30 @@ async function generateLocal(payload) { // payload: string or { prompt, options,
       if (documents && documents.length) bodyObj.documents = documents;
     }
 
+    // Unload other models to free VRAM before starting the backend request
+    try {
+      const fetchFn = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
+      const psRes = await fetchFn('http://127.0.0.1:11434/api/ps');
+      if (psRes.ok) {
+        const psData = await psRes.json();
+        for (const m of (psData.models || [])) {
+          if (m.name && m.name !== targetModel) {
+            console.log(`[Kyba] Unloading previous model: ${m.name}`);
+            await fetchFn('http://127.0.0.1:11434/api/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model: m.name, keep_alive: 0 })
+            }).catch(() => {});
+          }
+        }
+      }
+    } catch (e) {}
+
     const response = await fetch(backendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bodyObj),
-      signal: currentAbortController.signal
+      signal: currentAbortController ? currentAbortController.signal : undefined
     });
 
     if (response.ok) {
@@ -915,7 +1072,7 @@ async function generateLocal(payload) { // payload: string or { prompt, options,
             messages: messages,
             options: modelOptions || { temperature: 0.2, top_p: 0.9 }
           }),
-          signal: currentAbortController.signal
+          signal: currentAbortController ? currentAbortController.signal : undefined
         });
 
         if (!response.ok) {
@@ -1069,46 +1226,101 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
+  const setupWindowOpenHandler = (webContents) => {
+    webContents.setWindowOpenHandler(({ url }) => {
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        openKybaWebView(url);
+        return { action: 'deny' };
+      }
+      return { action: 'allow' };
+    });
+
+    webContents.on('will-navigate', (event, url) => {
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        // Ignorar websockets locales
+        if (url.includes('127.0.0.1') || url.includes('localhost')) return;
+        event.preventDefault();
+        openKybaWebView(url);
+      }
+    });
+  };
+
+  setupWindowOpenHandler(mainWindow.webContents);
+
   // ── BrowserView: AI/chat panel ────────────────────────────────────────────
-  const createChatView = () => {
+  const createChatView = (isLocal = true) => {
+    if (chatView) {
+      try {
+        mainWindow.removeBrowserView(chatView);
+      } catch (e) { }
+    }
+
     chatView = new BrowserView({
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        sandbox: false,                          // false so preload can access IPC
-        preload: path.join(__dirname, 'renderer', 'custom_chat_preload.js'),
-        webSecurity: false,                      // allow cross-origin for ChatGPT/Gemini
-        allowRunningInsecureContent: true
+        sandbox: true,
+        preload: isLocal ? path.join(__dirname, 'renderer', 'custom_chat_preload.js') : path.join(__dirname, 'ai-preload.js'),
+        webSecurity: true,
+        allowRunningInsecureContent: false
       }
     });
 
-    // mainWindow.setBrowserView(chatView); // Retrasado hasta backend-ready para no tapar el loading screen
+    if (mainWindow.isVisible() && backendIsReady) {
+      mainWindow.setBrowserView(chatView);
+      const { width, height } = mainWindow.getContentBounds();
+      chatView.setBounds({ x: 0, y: 45, width, height: height - 45 });
+    }
 
-    // Load initial page (custom chat by default; change here if you prefer ChatGPT)
-    chatView.webContents.loadFile(path.join(__dirname, 'renderer', 'custom_chat.html'))
-      .catch(e => console.error('[Kyba] Error loading chat panel:', e));
+    setupWindowOpenHandler(chatView.webContents);
 
-    // In development (unpackaged) open DevTools for the chat view so logs are visible
+    if (isLocal) {
+      chatView.webContents.loadFile(path.join(__dirname, 'renderer', 'custom_chat.html'))
+        .catch(e => console.error('[Kyba] Error loading chat panel:', e));
+    } else if (pendingProviderUrl) {
+      chatView.webContents.loadURL(pendingProviderUrl)
+        .catch(e => console.error('[Kyba] provider load error:', e));
+    }
+
     try {
-      // Only open DevTools if explicitly requested via env `OPEN_DEVTOOLS=1`.
       if (process.env.OPEN_DEVTOOLS === '1') {
         chatView.webContents.once('did-finish-load', () => {
           try { chatView.webContents.openDevTools({ mode: 'right' }); } catch (e) { /* ignore */ }
         });
       }
     } catch (e) { }
-
-    // Bounds se establecen al hacer setBrowserView en app.whenReady()
   };
 
+  function openKybaWebView(url) {
+    const webWin = new BrowserWindow({
+      title: 'Kyba WebView',
+      width: 1000,
+      height: 700,
+      autoHideMenuBar: true,
+      icon: path.join(__dirname, 'renderer', 'icon.png'),
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    webWin.loadURL(url);
+  }
+
   mainWindow.once('ready-to-show', () => {
-    createChatView();
+    createChatView(true);
   });
 
   // Ensure menu bar is hidden (force) so it doesn't show at startup
   try {
     mainWindow.setMenuBarVisibility(false);
   } catch (e) { }
+
+  mainWindow.on('minimize', (event) => {
+    if (serverMode && !forceQuit) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
 
   // Keep chatView docked to the left when the window is resized or maximized
   mainWindow.on('resize', () => {
@@ -1135,19 +1347,11 @@ function createWindow() {
   // ── IPC handlers ────────────────────────────────────────────────────────
 
   ipcMain.on('set-ai-provider', (_, providerUrl) => {
-    if (!chatView) return;
-
     if (providerUrl === 'custom') {
-      // Use custom_chat_preload.js (already set on chatView) for local chat
-      chatView.webContents.loadFile(
-        path.join(__dirname, 'renderer', 'custom_chat.html')
-      ).catch(e => console.error('[Kyba] custom chat load error:', e));
+      createChatView(true);
     } else {
-      // External provider: switch preload to ai-preload.js won't happen at runtime,
-      // but we can simply load the URL (webSecurity:false handles login cookies)
       pendingProviderUrl = providerUrl;
-      chatView.webContents.loadURL(providerUrl)
-        .catch(e => console.error('[Kyba] provider load error:', e));
+      createChatView(false);
     }
   });
 
@@ -1185,7 +1389,7 @@ function createWindow() {
   });
 
   ipcMain.on('show-chat-view', () => {
-    if (chatView && mainWindow) {
+    if (chatView && mainWindow && backendIsReady) {
       try {
         mainWindow.setBrowserView(chatView);
         setChatViewBounds();
@@ -1202,6 +1406,127 @@ function createWindow() {
   }, 6000);
 
   // ── Save file to disk via native dialog ──────────────────────────────────
+  ipcMain.on('set-network-exposed', (_, exposed) => {
+    try {
+      const configPath = path.join(app.getPath('userData'), 'network_config.json');
+      fs.writeFileSync(configPath, JSON.stringify({ expose_network: exposed }), 'utf8');
+    } catch(e) {
+      console.error('Error saving network config', e);
+    }
+  });
+
+  ipcMain.on('save-custom-models', (_, models) => {
+    try {
+      const modelsPath = path.join(app.getPath('userData'), 'kyba_custom_models.json');
+      fs.writeFileSync(modelsPath, JSON.stringify(models, null, 2), 'utf8');
+    } catch (e) {
+      console.error('Error saving custom models to file:', e);
+    }
+  });
+
+
+
+  ipcMain.handle('show-native-menu', async (event, options) => {
+    return new Promise((resolve) => {
+      let clickedId = null;
+      const { Menu } = require('electron');
+      const template = options.template.map(opt => {
+        if (opt.type === 'separator') return { type: 'separator' };
+        if (opt.type === 'header') return { label: opt.label, enabled: false };
+        return {
+          label: opt.name,
+          type: opt.radio ? 'radio' : 'normal',
+          checked: opt.checked,
+          click: () => { clickedId = opt.id; }
+        };
+      });
+      const menu = Menu.buildFromTemplate(template);
+      menu.popup({
+        window: BrowserWindow.fromWebContents(event.sender),
+        x: options.x,
+        y: options.y,
+        callback: () => {
+          resolve(clickedId);
+        }
+      });
+    });
+  });
+
+  ipcMain.on('set-server-mode', (_, mode) => {
+    serverMode = mode;
+    try {
+      const configPath = path.join(app.getPath('userData'), 'server_mode_config.json');
+      fs.writeFileSync(configPath, JSON.stringify({ server_mode: mode }), 'utf8');
+    } catch(e) {
+      console.error('Error saving server mode config', e);
+    }
+  });
+
+  ipcMain.handle('get-server-mode', () => {
+    return serverMode;
+  });
+
+  ipcMain.handle('get-local-ip', () => {
+    const os = require('os');
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        // Skip internal and non-IPv4 addresses
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+    return '127.0.0.1';
+  });
+
+  ipcMain.handle('get-network-exposed', () => {
+    try {
+      const configPath = path.join(app.getPath('userData'), 'network_config.json');
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        return config.expose_network === true;
+      }
+    } catch(e) {}
+    return false;
+  });
+
+  ipcMain.handle('remove-model', async (event, modelName) => {
+    return new Promise((resolve) => {
+      try {
+        const { execSync } = require('child_process');
+        const fs = require('fs');
+        const pathMod = require('path');
+        let exe = 'ollama';
+        try {
+          if (process.platform === 'win32') {
+            const out = execSync('where ollama', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().split(/\\r?\\n/)[0].trim();
+            if (out) exe = out;
+          } else {
+            const out = execSync('which ollama', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+            if (out) exe = out;
+          }
+        } catch (e) { }
+  
+        if (exe === 'ollama') {
+          const possible = [];
+          const up = process.env.USERPROFILE || process.env.HOME;
+          if (up) possible.push(pathMod.join(up, '.ollama', 'bin', 'ollama.exe'), pathMod.join(up, '.ollama', 'bin', 'ollama'));
+          if (process.env.PROGRAMFILES) possible.push(pathMod.join(process.env.PROGRAMFILES, 'Ollama', 'ollama.exe'));
+          possible.push(pathMod.join('C:', 'Program Files', 'Ollama', 'ollama.exe'), pathMod.join('C:', 'Program Files (x86)', 'Ollama', 'ollama.exe'));
+          for (const p of possible) {
+            try { if (fs.existsSync(p)) { exe = p; break; } } catch (e) { }
+          }
+        }
+  
+        execSync(`"${exe}" rm "${modelName}"`, { stdio: 'ignore' });
+        resolve({ ok: true });
+      } catch (e) {
+        resolve({ ok: false, error: e.message });
+      }
+    });
+  });
+
   ipcMain.handle('save-file', async (_, content, ext) => {
     try {
       const win = BrowserWindow.getFocusedWindow() || mainWindow;
@@ -1276,7 +1601,13 @@ app.on('will-quit', () => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('before-quit', () => {
+  forceQuit = true;
 });
 
 app.on('activate', () => {
