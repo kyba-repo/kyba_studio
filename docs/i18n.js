@@ -1,7 +1,7 @@
 const translations = {
     es: {
-        "title": "Mi Proyecto | Plataforma de Nueva Generación",
-        "meta_desc": "Descubre nuestro nuevo e increíble proyecto. Una plataforma rápida, segura y con un diseño intuitivo.",
+        "title": "Kyba Software",
+        "meta_desc": "Transformando la forma de trabajar con IA",
         "nav_home": "Inicio",
         "nav_how": "Cómo funciona",
         "nav_features": "Características",
@@ -39,8 +39,8 @@ const translations = {
         "footer_text": "&copy; 2026 KYBA. Todos los derechos reservados."
     },
     en: {
-        "title": "My Project | Next Gen Platform",
-        "meta_desc": "Discover our new and amazing project. A fast, secure platform with an intuitive design.",
+        "title": "Kyba Software",
+        "meta_desc": "Transforming how we work with AI",
         "nav_home": "Home",
         "nav_how": "How it works",
         "nav_features": "Features",
