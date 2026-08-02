@@ -33,3 +33,4 @@ build-linux/
 dist-linux/
 chroma_test/
 .mypy_cache/
+r2-worker/
