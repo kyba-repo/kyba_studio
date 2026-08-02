@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (imgDownload) imgDownload.src = "kyba_download_eng.png";
                 if (imgTuning) imgTuning.src = "kyba-prompt_eng.png";
             } else {
-                if (imgHero) imgHero.src = "main_banner.png";
+                if (imgHero) imgHero.src = "main_banner_es.png";
                 if (imgDownload) imgDownload.src = "descarga_completa.png";
                 if (imgTuning) imgTuning.src = "tuning.png";
             }
