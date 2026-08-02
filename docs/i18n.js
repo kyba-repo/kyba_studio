@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const imgHero = document.getElementById('img-hero');
             const imgDownload = document.getElementById('img-download');
             const imgTuning = document.getElementById('img-tuning');
-            
+            // image sources
             if (lang === 'en') {
                 if (imgHero) imgHero.src = "main_banner.png";
                 if (imgDownload) imgDownload.src = "kyba_download_eng.png";
